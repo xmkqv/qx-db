@@ -217,6 +217,18 @@ brew install supabase/tap/supabase
 supabase db push
 ```
 
+### Docker Container Naming
+
+Supabase CLI automatically names containers using the pattern `supabase_<service>_<project_id>`. With our `project_id = "qx"` configuration, containers are named:
+- `supabase_db_qx` - PostgreSQL database
+- `supabase_auth_qx` - Authentication service
+- `supabase_rest_qx` - PostgREST API
+- `supabase_realtime_qx` - Realtime subscriptions
+- `supabase_storage_qx` - File storage
+- etc.
+
+This naming convention is determined by Supabase CLI and cannot be customized to match our `qx-db` naming pattern.
+
 ## Developer Guide
 
 ### Data Polymorphism Pattern
