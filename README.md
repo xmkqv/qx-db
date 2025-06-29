@@ -2,9 +2,7 @@
 
 When complete, qx-db will provide a universal data layer where any application can store, query, and relate any type of data through a consistent interface, transforming disconnected data silos into a unified knowledge graph.
 
-## Roadmap
-
-### Phase I | Foundation: Core database schema and basic operations
+## I | Foundation: Core database schema and basic operations
 
 - ✓ node | Universal entity table for all data types
 - ✓ root | Authentication linkage between auth.users and nodes
@@ -35,7 +33,7 @@ graph TD
     [(item)] --> [(tile)]
 ```
 
-### Later
+## Later
 
 - [ ] cli:qx.add_data_type | Add new data types with automatic schema generation: (type_name, fields) -> schema_migration
 - [ ] api:qx.get_node | Retrieve any node with its data: (node_id) -> node + data
