@@ -1,0 +1,28 @@
+# macOS
+.DS_Store
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Dependencies
+node_modules/
+
+# Supabase
+supabase/.temp/
+supabase/.branches/
+supabase/functions/node_modules/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Generated files
+/docs/schema.sql

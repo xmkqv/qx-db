@@ -1,226 +1,253 @@
 # qx-db
 
-When complete, qx-db will provide a universal data layer where any application can store, query, and relate any type of data through a consistent interface, transforming disconnected data silos into a unified knowledge graph.
+A polymorphic node-based database schema that powers the qx ecosystem, enabling flexible data modeling and spatial knowledge management.
 
-## Givens
+## Overview
 
-- **Architecture**: PostgreSQL schema with polymorphic node system
-- **Access**: Supabase for authentication, real-time, and API layer
-- **Pattern**: All data types reference a central node table via foreign key
-- **Naming**: Data tables follow `data_*` convention (except legacy `text` and `file`)
-- **Constraints**: Deferred constraint ensures every node has associated data
-- **Triggers**: Automatic node creation on data insert, timestamp updates
-- **Container names**: Supabase CLI uses `supabase_<service>_qx` pattern
-- **Performance**: Indexes on foreign keys, search fields, and common queries
+qx-db provides a universal data layer where any type of information can be stored as "nodes" with typed data attached. This design allows for maximum flexibility while maintaining referential integrity and type safety.
 
-## Phases
+### Key Features
 
-### Foundation: Core database schema and basic operations
+- **Polymorphic nodes**: All entities share a common base with type-specific data tables
+- **Spatial organization**: Tiles and items enable 2D canvas-based UI representation  
+- **Relationship modeling**: Links for semantic connections, items for hierarchical structures
+- **Type generation**: Automatic TypeScript and Python model generation
+- **Real-time capable**: Built on Supabase for instant updates and subscriptions
+- **Full-text search**: PostgreSQL text search on content
 
-- **Interfaces**
-
-- ✓ `node`: Universal entity table for all data types (id, type, created_at, updated_at)
-- ✓ `root`: Authentication linkage between auth.users and nodes
-- ✓ `link`: Semantic relationships between nodes (src_id, dst_id)
-- ✓ `item`: Hierarchical relationships (node_id, desc_id, next_id, tile_id)
-- ✓ `text`: Text content storage (node_id, content)
-- ✓ `file`: File metadata storage (node_id, type, bytes, uri)
-- ✓ `tile`: Visual rendering configuration (x, y, w, h, viewbox, layout, visual, anchor)
-- ✓ `data_user`: User profile data (node_id, username, display_name, bio, avatar_url, preferences)
-- ✓ `trigger_set_updated_at() -> trigger`: Automatic timestamp updates
-- ✓ `get_dsts(src_id: integer) -> node[]`: Get destination nodes from links
-- ✓ `get_srcs(dst_id: integer) -> node[]`: Get source nodes from links
-- ✓ `get_items(item_id: integer, variants?: jsonb) -> item[]`: Get items by ID
-- ✓ `trigger_data_insert() -> trigger`: Auto-create nodes when data inserted
-- ✓ `check_node_has_data() -> trigger`: Constraint ensuring nodes have data
-- ✓ `get_nbrs(node_id: integer) -> table(neighbor_id: integer, relationship_type: text)`: Get all neighbors
-
-- **Flow**
-
-```mermaid
-%%{init: {'theme': 'dark'}}%%
-graph TD
-  %% Data insertion flow
-  Data([data])
-  Node[(node)]
-  DataTable[(data_*)]
-  
-  %% Triggers
-  InsertTrigger[trigger_data_insert]
-  UpdateTrigger[trigger_set_updated_at]
-  CheckConstraint[check_node_has_data]
-  
-  %% Flow
-  Data --> InsertTrigger
-  InsertTrigger --> Node
-  InsertTrigger --> DataTable
-  DataTable --> UpdateTrigger
-  UpdateTrigger --> DataTable
-  Node -.-> CheckConstraint
-  CheckConstraint -.-> DataTable
-```
-
-### Data Types: Extensible polymorphic data system
-
-- **Interfaces**
-
-- [ ] `qx add-data-type --name <string> --fields <json>`: Add new data types with automatic schema generation
-- [ ] `POST /api/nodes`: Create nodes of any type `(type: string, data: object) -> {id: string, node: Node}`
-- [ ] `GET /api/nodes/:id`: Retrieve any node with its data `(node_id: string) -> Node & Data`
-- [ ] `POST /api/links`: Create semantic relationships `(src_id: string, dst_id: string, predicate?: string) -> Link`
-- [ ] `qx generate-types`: Auto-generate TypeScript types from schema
-
-- **Flow**
-
-```mermaid
-%%{init: {'theme': 'dark'}}%%
-graph TB
-  %% CLI command
-  CLI[qx add-data-type --name example --fields '{...}']
-  
-  %% Processing
-  Parse[parse_fields]
-  Validate[validate_schema]
-  Generate[generate_migration]
-  
-  %% Database operations
-  AlterEnum[ALTER TYPE NODETYPE]
-  CreateTable[(data_example)]
-  AddTriggers[add_triggers]
-  UpdateFunction[update check_node_has_data]
-  
-  %% Results
-  Migration([migration.sql])
-  Types([types.ts])
-  
-  %% Flow
-  CLI --> Parse
-  Parse --> Validate
-  Validate --> Generate
-  Generate --> AlterEnum
-  AlterEnum --> CreateTable
-  CreateTable --> AddTriggers
-  AddTriggers --> UpdateFunction
-  UpdateFunction --> Migration
-  Migration --> Types
-```
-
-### Graph Operations: Efficient relationship traversal
-
-- **Interfaces**
-
-- [ ] `graph.traverse(start_node: integer, depth: integer, filters?: Filter[]) -> Graph`: Navigate relationships efficiently
-- [ ] `POST /api/subscribe`: Real-time updates via Supabase `(filters: Filter[]) -> Subscription`
-- [ ] `POST /api/batch`: Efficient bulk operations `(operations: Operation[]) -> Result[]`
-- [ ] `search.vector(embedding: float[], threshold: float) -> node[]`: Vector search capabilities
-- [ ] `query.time_travel(timestamp: string) -> Snapshot`: Historical data viewing
-
-### Later
-
-- Advanced search with vector embeddings
-- Audit trail for all node changes
-- Performance monitoring and optimization
-- GraphQL API layer
-- Data export/import utilities
-- Schema versioning and migrations
-- Multi-tenant support
-- Distributed node replication
-
-## Exclusions
-
-- **INHERITS for polymorphism**: Partition/inheritance conflicts prevent usage
-  - Issue: Cannot use table inheritance with partitioning in PostgreSQL
-  - Decision: Use foreign key relationships to central node table instead
-- **Table partitioning**: Not needed at current scale
-  - Threshold: Consider when node table exceeds 10M records
-- **JSONB storage**: Typed columns provide better constraints
-  - Exception: Still used for flexible fields like preferences, style
-- **Materialized views**: Performance not yet a concern
-  - Metric: Query times consistently under 100ms
-- **Multi-tenancy**: Single-tenant design
-  - Reason: Complexity without current requirement
-- **ORM layers**: Direct SQL and Supabase client
-  - Benefit: Full control over query optimization
-- **Complex migrations**: Schema-first approach
-  - Method: Forward-only migrations, no rollbacks
-- **ascn_id/prev_id naming**: Using desc_id/next_id
-  - Clarity: desc_id (descendant) better indicates hierarchical relationship
-- **Item-Tile reverse ownership**: Tiles don't reference items
-  - Reason: Allows ephemeral tiles for rendering without persistence
-  - Trade-off: Sacrifices referential integrity for flexibility
-
-## Tests
-
-- **on deploy**:
-  - Database migrations apply successfully
-  - All triggers fire correctly (updated_at, data_insert, check_node_has_data)
-  - Constraint checks pass (node-data integrity, unique constraints)
-  - Functions return expected data (get_dsts, get_srcs, get_nbrs, get_items)
-  - Indexes created successfully (performance, unique, partial, full-text)
-  
-- **on edit**:
-  - Schema changes are backward compatible
-  - New data types follow `data_*` naming convention
-  - Triggers created for new tables (updated_at, insert_node)
-  - check_node_has_data() function updated for new data types
-  - Documentation reflects current schema state
-
-## Installation
+## Quick Start
 
 ```bash
-# Clone repository
-git clone https://github.com/yourusername/qx-db.git
-cd qx-db
+# Start local development database
+cd ../qx && qx db dev
 
-# Install Supabase CLI
-brew install supabase/tap/supabase
+# Run migrations
+cd qx-db && supabase db push
 
-# Configure environment
-# Create .env with your Supabase credentials:
-# SUPABASE_URL=your_project_url
-# SUPABASE_ANON_KEY=your_anon_key
-
-# Apply database migrations
-supabase db push
+# Generate TypeScript and Python types
+cd ../qx && qx db gen-clients
 ```
 
-## Developer Guide
+## Database Design
 
-### Working with Nodes
+### Core Tables
+
+| Table | Purpose |
+|-------|---------|
+| `node` | Base entity with id, type, timestamps, and creator |
+| `node_access` | Permission grants for collaborative access |
+| `data_text` | Text content (markdown, notes) |
+| `data_file` | File metadata (images, CSVs) |
+| `data_user` | User profiles with auth.users linkage |
+| `link` | Bidirectional relationships between nodes |
+| `item` | Hierarchical relationships with spatial context |
+| `tile` | Visual representation on 2D canvas |
+
+### Automatic Node Creation
+
+When you insert into a data table, a node is automatically created:
 
 ```sql
--- Create a text node (auto-creates node via trigger)
-INSERT INTO text (content) VALUES ('Hello, world!');
+-- This single insert:
+INSERT INTO data_text (content) VALUES ('Hello world');
 
--- Create relationships
+-- Automatically creates:
+-- 1. A node with type='text' 
+-- 2. A data_text row linked to that node
+```
+
+### Authentication Entry Point
+
+The `data_user` table connects Supabase authentication to your data graph:
+
+```sql
+-- Get user's node ID from auth
+SELECT node_id FROM data_user WHERE user_id = auth.uid();
+
+-- Create user profile on first login
+INSERT INTO data_user (user_id, username, display_name)
+VALUES (auth.uid(), 'username', 'Display Name')
+ON CONFLICT (user_id) DO NOTHING;
+```
+
+### Collaborative Access
+
+The system supports fine-grained permissions for collaborative workflows:
+
+```sql
+-- Grant read access to another user
+INSERT INTO node_access (node_id, user_id, permission, granted_by)
+VALUES (123, 'other-user-uuid', 'view', auth.uid());
+
+-- Grant edit access to a collaborator
+INSERT INTO node_access (node_id, user_id, permission, granted_by)
+VALUES (123, 'collaborator-uuid', 'edit', auth.uid());
+
+-- Check your permissions on a node
+SELECT permission FROM accessible_nodes 
+WHERE node_id = 123 AND user_id = auth.uid();
+
+-- Get all nodes you can access (for live queries)
+SELECT * FROM live_user_nodes(include_data := true);
+```
+
+**Permission Levels:**
+- `view`: Read-only access to node and its data
+- `edit`: Can modify node and its relationships
+- `admin`: Full control including granting access to others
+- Creators automatically get `admin` permission on their nodes
+
+### Querying Relationships
+
+```sql
+-- Find all connections for a node
+SELECT * FROM get_nbrs(node_id);
+
+-- Get linked nodes
+SELECT * FROM get_dsts(node_id);  -- Outgoing links
+SELECT * FROM get_srcs(node_id);  -- Incoming links
+
+-- Get all accessible nodes with their data (efficient for live queries)
+SELECT * FROM live_user_nodes(include_data := true);
+
+-- Get only node metadata without data (faster)
+SELECT * FROM live_user_nodes(include_data := false);
+
+-- Filter by node type
+SELECT * FROM live_user_nodes() WHERE type = 'text';
+
+-- Get nodes you created
+SELECT * FROM live_user_nodes() WHERE creator_id = auth.uid();
+```
+
+## Integration Points
+
+- **qx-ui**: Frontend uses generated TypeScript types for type-safe database access
+- **qx-ai**: Backend will integrate in Phase II for persistent conversation memory
+- **qx**: Orchestrator manages migrations and type generation pipeline
+
+## Project Structure
+
+```
+qx-db/
+├── supabase/
+│   ├── config.toml          # Supabase configuration
+│   └── migrations/          # SQL migration files
+├── scripts/
+│   └── migrate.sh          # Migration helper script
+├── CLAUDE.md               # Technical documentation
+└── README.md              # This file
+```
+
+## Development Workflow
+
+1. **Make schema changes**: Create a new migration
+   ```bash
+   cd scripts && ./migrate.sh add_new_feature
+   ```
+
+2. **Add new data types**: Follow the template in `data_type.template.md` for consistent patterns
+
+3. **Apply migrations**: Push to local database
+   ```bash
+   supabase db push
+   ```
+
+4. **Generate types**: Update TypeScript/Python models
+   ```bash
+   cd ../qx && qx db gen-clients
+   ```
+
+5. **Test locally**: Verify with local Supabase instance
+   ```bash
+   cd ../qx && qx db test-dev
+   ```
+
+## Production Deployment
+
+Production database is managed through Supabase Dashboard. The orchestrator provides helpers:
+
+```bash
+cd ../qx
+qx db deploy      # Confirms production readiness
+qx db test-prod   # Tests production connectivity
+```
+
+## Examples
+
+### Working with Collaborative Access
+
+```sql
+-- Share a document with view-only access
+BEGIN;
+  -- Find the document to share
+  SELECT id FROM node n
+  JOIN data_text dt ON dt.node_id = n.id
+  WHERE dt.content LIKE '%Project Plan%'
+  AND n.creator_id = auth.uid()
+  LIMIT 1;
+  
+  -- Grant view access (assuming node_id = 456)
+  INSERT INTO node_access (node_id, user_id, permission)
+  VALUES (456, 'viewer-uuid', 'view');
+COMMIT;
+
+-- Create a collaborative workspace
+BEGIN;
+  -- Create a folder node
+  INSERT INTO data_text (content) 
+  VALUES ('# Team Workspace\nShared project resources');
+  
+  -- Grant team members edit access
+  INSERT INTO node_access (node_id, user_id, permission)
+  VALUES 
+    (currval('node_id_seq'), 'teammate1-uuid', 'edit'),
+    (currval('node_id_seq'), 'teammate2-uuid', 'edit');
+COMMIT;
+
+-- Transfer ownership (grant admin to new owner)
+INSERT INTO node_access (node_id, user_id, permission)
+VALUES (789, 'new-owner-uuid', 'admin');
+```
+
+### Create a document with spatial representation
+
+```sql
+-- Create a text document
+INSERT INTO data_text (content) VALUES ('# My Document\n\nContent here...');
+
+-- Create a tile for visual representation  
+INSERT INTO tile (x, y, w, h, viewbox_x, viewbox_y, viewbox_zoom)
+VALUES (100, 100, 400, 300, 0, 0, 1)
+RETURNING id AS tile_id;
+
+-- Link the document to its tile
+INSERT INTO item (node_id, tile_id) 
+VALUES (currval('node_id_seq'), currval('tile_id_seq'));
+```
+
+### Link related content
+
+```sql
+-- Create a link between two nodes
 INSERT INTO link (src_id, dst_id) VALUES (1, 2);
 
--- Query nodes with their data
-SELECT n.*, t.content, f.uri, u.username
-FROM node n
-LEFT JOIN text t ON t.node_id = n.id
-LEFT JOIN file f ON f.node_id = n.id
-LEFT JOIN data_user u ON u.node_id = n.id;
-
--- Get neighbors of a node
-SELECT * FROM get_nbrs(1);
+-- Find all linked content
+SELECT n2.*, t.content
+FROM link l
+JOIN node n2 ON l.dst_id = n2.id  
+LEFT JOIN data_text t ON t.node_id = n2.id
+WHERE l.src_id = 1;
 ```
 
-### Adding a New Data Type
+## Technical Details
 
-1. Add enum value: `ALTER TYPE NODETYPE ADD VALUE 'example';`
-2. Create data table following `data_*` naming:
-```sql
-CREATE TABLE data_example (
-    id SERIAL PRIMARY KEY,
-    node_id INTEGER NOT NULL REFERENCES node(id) ON DELETE CASCADE,
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    example_field TEXT NOT NULL,
-    UNIQUE (node_id)
-);
-```
-3. Add triggers for automatic timestamps and node creation
-4. Update `check_node_has_data()` function
-5. Create indexes on foreign keys and search fields
+- **PostgreSQL 15+** for advanced features and performance
+- **Supabase** for authentication, real-time, and API layer
+- **Deferred constraints** ensure data integrity across transactions
+- **Comprehensive indexes** for query performance
+- **Trigger-based automation** for timestamps and data consistency
 
+## License
+
+Part of the qx ecosystem. See parent directory for license information.
