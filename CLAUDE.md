@@ -2,7 +2,9 @@
 
 Universal polymorphic database schema for the qx ecosystem, providing flexible data modeling through a node-based architecture.
 
-- bytes
+## Notes
+
+- **bytea**: The `bytea` type is used for binary data storage, such as files. This reflects the sql type BYTEA, and prevents name clashes in python with the `bytes` type.
 
 ## Architecture
 
@@ -63,7 +65,6 @@ Two types of connections:
 - `get_srcs(dst_id)`: Get all source nodes to a node
 - `get_nbrs(node_id)`: Get all neighbors (links + descendants)
 - `get_items(item_id, variants)`: Get items with optional filtering
-- `live_user_nodes(include_data)`: Get all accessible nodes with optional data for live queries
 
 ### Constraints
 
@@ -90,7 +91,7 @@ qx db gen-clients
 Follow the standardized pattern in `data_type.template.md` for consistent data\_\* table creation. Each data type requires:
 
 1. Following the template for table structure and triggers
-2. Manual updates to `check_node_has_data()` and `live_user_nodes()` functions
+2. Manual updates to `check_node_has_data()` function
 3. Adding to NODETYPE enum
 4. Standard RLS policies
 
@@ -240,8 +241,14 @@ FROM node_access na
 JOIN data_user u ON u.user_id = na.user_id
 WHERE na.node_id = 123;
 
--- Live query for all accessible content (frontend subscription)
-SELECT * FROM live_user_nodes(include_data := true);
+-- Query for all accessible content
+SELECT n.*, dt.content, df.uri, du.username
+FROM node n
+JOIN accessible_nodes an ON n.id = an.node_id
+LEFT JOIN data_text dt ON dt.node_id = n.id
+LEFT JOIN data_file df ON df.node_id = n.id
+LEFT JOIN data_user du ON du.node_id = n.id
+WHERE an.user_id = auth.uid();
 ```
 
 ### 5. Access Control Model
@@ -269,7 +276,7 @@ The `accessible_nodes` view combines creator and granted access for efficient pe
 cd ../qx && qx db dev
 
 # Create new migration
-cd qx-db/scripts && ./migrate.sh my_migration
+supabase migration new my_migration
 
 # Apply migrations
 supabase db push

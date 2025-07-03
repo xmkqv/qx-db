@@ -73,23 +73,6 @@ UNION ALL
 SELECT 1 FROM data_${TYPE} WHERE node_id = NEW.id
 ```
 
-### 2. Update `live_user_nodes()` function
-Add these two items:
-
-**LEFT JOIN** (after other data table joins):
-```sql
-LEFT JOIN data_${TYPE} d${TYPE_SHORT} ON include_data AND n.id = d${TYPE_SHORT}.node_id
-```
-
-**CASE statement** (in the data selection):
-```sql
-WHEN include_data AND n.type = '${TYPE}' THEN 
-  jsonb_build_object(
-    -- Include relevant fields from data_${TYPE}
-    'node_id', d${TYPE_SHORT}.node_id
-  )
-```
-
 ## Naming Conventions
 
 - **Table name**: `data_${TYPE}` (lowercase, underscore-separated)
