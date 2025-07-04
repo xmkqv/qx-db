@@ -1,34 +1,16 @@
 # Dual Lineage Tree Architecture
 
-## Conventions
-
-- **Naming**:
-  - indexes: `index_data_<table>__<fields_separated_by__>`
-  - functions: `fn_data_<table>_<verb_object>`
-  - triggers: `trigger_data_<table>_<event>_<verb_object>`
-  - data tables: `data_<TYPE>` (lowercase, underscore-separated)
-  - migration files: 
-    - `YYYYMMDDHHMMSS_<...>.sql` - generic pattern
-    - `YYYYMMDDHHMMSS_<table>_init.sql` - initial table creation
-    - `YYYYMMDDHHMMSS_<table>_<update>.sql` - changes to existing tables
-    - `YYYYMMDDHHMMSS_data_<table>.sql` - data migrations
-  - policies: descriptive names in quotes
-
 ## Invariants: Irreducible Requirements
 
 **Terms**:
 - **Invariant**: A condition that must always be true, regardless of system state
 - **Root**: An item with ascn_id = NULL
 - **Head**: An item referenced by any other item's desc_id (branch origin)
-- **Stem**: Item whose desc_id points to a descendant
-- **Ascendant**: Item referenced by ascn_id
-- **Branch**: All items reachable from a stem's desc_id following next_id chains
-- **Native Branch**: Subset of branch where items have ascn_id = stem.id
+- **Stem**: The instantaneous parent - item whose desc_id points to a descendant
+- **Ascendant**: The true parent - item referenced by ascn_id
 - **Native Descendant**: Descendant where descendant.ascn_id = stem.id
-- **Flux Condition**: When descendant.ascn_id ≠ stem.id
 - **Flux**: Discontinuity where descendant.ascn_id ≠ stem.id
-- **Flux Item**: An item in a flux condition with its stem
-- **Flux Descendant**: Descendant at a flux point, composed from different tree
+- **Flux Descendant**: Descendant at a flux point, composed from another origin
 
 ### I1: Universal Node Identity
 Every entity is a node with unique identity, type, and timestamps.
@@ -42,8 +24,9 @@ All pointers must reference existing entities or be null.
 ### I4: Tree Traversability
 Every tree must be traversable from well-defined root items (ascn_id = NULL).
 
-### I5: Tree Composition
-Every tree can be composed from other trees via item desc_id references.
+### I5: Dual Lineage Trees
+Dual lineage tree architecture tracks two distinct lineages: `ascn_id` preserves item origin while `desc_id` defines instantaneous structure. Tree composition occurs at flux boundaries where these lineages diverge.
+Tree composition is detected via flux: where descendant.ascn_id ≠ stem.id.
 
 ### I6: Lifecycle Authority
 Nodes own the lifecycle of their data and connections.
@@ -63,41 +46,34 @@ Cycles in tree composition are explicitly allowed (except self-reference). Trave
 
 ### P1: Ascendant Assignment (from I5)
 - Native descendants: `new_item.ascn_id = stem.id`
-- Flux descendants: `new_item.ascn_id` preserves ascendant lineage
-- Branch queries: `WHERE ascn_id = stem.id OR id = stem.desc_id`
+- Flux descendants: `new_item.ascn_id` preserves original lineage
+- Enables fast branch queries via ascn_id index
 
 ### P2: Flux as Feature (from I5)
-- Flux occurs where descendant.ascn_id ≠ stem.id, enabling tree composition.
-- Items track dual lineage: ascn_id (ascendant lineage) and desc_id (stem lineage). 
 - Flux points mark tree composition boundaries
 - No special entities needed - discontinuity IS the marker
 - Cross-tree desc_id references create flux naturally
 
-### P3: Flux Constraints (from I5, I6)
-- Flux items are ALWAYS heads (no incoming next_id)
-- Stem owns lifecycle of flux descendants
-- Client handles visual discontinuity appropriately
-
-### P4: Root Simplicity (from I4)
+### P3: Root Simplicity (from I4)
 - Trees start at roots (ascn_id = NULL)
 - No explicit containers or identity needed
 - Tree membership is implicit via ancestry
 
-### P5: Cycle Handling (from I8)
+### P4: Cycle Handling (from I8)
 - Cycles create infinite traversal possibilities
 - Path tracking prevents infinite loops
 - Cycle points can be detected and reported
 - Enables recursive structures (e.g., templates referencing themselves)
 
-### P6: Simplified Lifecycle (from I6)
+### P5: Simplified Lifecycle (from I6)
 - Direct ascendant-descendant relationships
 - Simple entity lifecycle management
 - Clean deletion cascades via ascn_id
 
-### P7: Flux-Aware Permissions (from I7)
+### P6: Flux-Aware Permissions (from I7)
 - Native descendants inherit stem permissions naturally
 - Flux descendants require checks on both lineages
-- Least permissive wins at flux boundaries (must have permission via BOTH paths)
+- Least permissive wins at flux boundaries
 - Security preserved across tree composition
 
 ## Critical Design Decisions
@@ -105,14 +81,12 @@ Cycles in tree composition are explicitly allowed (except self-reference). Trave
 **Terms**:
 - **Branch Head**: Item that serves as desc_id target for other items
 - **Flux Point**: Where ascn_id discontinuity occurs (composition boundary)
-- **Native Item**: Item where ascn_id = stem.id
-- **Flux Item**: Item where ascn_id ≠ stem.id (in flux condition with its stem)
+- **Native Branch**: All descendants have continuous ascn_id lineage
+- **Flux Branch**: Contains one or more flux points
 
 ### Item Deletion Trigger Logic
 
 When deleting an item in the dual lineage model:
-
-**Note**: Flux items (where ascn_id ≠ stem.id) cannot be deleted independently per P3.
 
 #### Deletion Cases Matrix
 
@@ -124,7 +98,7 @@ When deleting an item in the dual lineage model:
 | N1 | No | Yes | No | No | **Native Cascade**: Descendants deleted via ascn_id CASCADE |
 | N2 | No | Yes | Yes | No | **Dual Update**: Cascade natives, repoint heads |
 | N3 | No | Yes | No | Yes | **Native Cascade + Splice**: Delete descendants, splice peers |
-| H1 | No | No | Yes | No | **Head Repoint**: Stem's desc_id updated (blocked if flux) |
+| H1 | No | No | Yes | No | **Head Repoint**: Stem's desc_id updated |
 | H2 | No | No | Yes | Yes | **Head Repoint + Splice**: Complex repointing |
 | P1 | No | No | No | Yes | **Peer Splice**: Update predecessor's next_id |
 | T1 | No | No | No | No | **Terminal Delete**: No repointing needed |
@@ -148,7 +122,7 @@ CREATE TABLE node (
   type NodeType NOT NULL,  -- Immutable after creation
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  creator_id UUID REFERENCES auth.users(id) ON DELETE SET NULL  -- Creator has automatic admin permission
+  creator_id UUID REFERENCES auth.users(id) ON DELETE SET NULL
 );
 
 -- Enhanced item table with ascn_id
@@ -192,6 +166,7 @@ CREATE TABLE data_text (
   id SERIAL PRIMARY KEY,
   node_id INTEGER NOT NULL UNIQUE REFERENCES node(id) ON DELETE CASCADE,
   content TEXT NOT NULL,
+  tsvector tsvector GENERATED ALWAYS AS (to_tsvector('english', content)) STORED
 );
 
 -- File data
@@ -199,7 +174,8 @@ CREATE TABLE data_file (
   id SERIAL PRIMARY KEY,
   node_id INTEGER NOT NULL UNIQUE REFERENCES node(id) ON DELETE CASCADE,
   type FileType NOT NULL,
-  bytea BYTEA NOT NULL -- bytea field name explicitly chosen to avoid name conflicts in clients
+  bytes INTEGER NOT NULL,
+  uri TEXT NOT NULL
 );
 
 -- User data with root item reference
@@ -208,7 +184,9 @@ CREATE TABLE data_user (
   node_id INTEGER NOT NULL UNIQUE REFERENCES node(id) ON DELETE CASCADE,
   user_id UUID NOT NULL UNIQUE,  -- Auth system ID
   username TEXT NOT NULL UNIQUE,
+  display_name TEXT,
   bio TEXT,
+  avatar_url TEXT,
   head_item_id INTEGER REFERENCES item(id) ON DELETE SET NULL  -- User's tree head
 );
 
@@ -223,18 +201,25 @@ CREATE TABLE node_access (
   node_id INTEGER NOT NULL REFERENCES node(id) ON DELETE CASCADE,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   permission PermissionType NOT NULL,
+  granted_by UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   UNIQUE(node_id, user_id)
 );
 
--- Link permissions derived from src node - no separate table needed
+CREATE TABLE link_access (
+  id SERIAL PRIMARY KEY,
+  link_id INTEGER NOT NULL REFERENCES link(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  permission PermissionType NOT NULL,
+  UNIQUE(link_id, user_id)
+);
 ```
 
 ### Type Definitions
 
 ```sql
 NodeType: ENUM('text', 'file', 'user')
-FileType: ENUM('png')
-PermissionType: ENUM('view', 'edit', 'admin')  -- Hierarchy: view < edit < admin
+FileType: ENUM('png', 'jpg', 'pdf', 'mp4', 'json')
+PermissionType: ENUM('view', 'edit', 'admin')
 ```
 
 ### Indexes
@@ -252,91 +237,151 @@ CREATE INDEX index_item__id__ascn_id ON item(id, ascn_id);  -- Origin chain
 CREATE INDEX index_item__desc_id_not_null ON item(id) WHERE desc_id IS NOT NULL;  -- Heads
 ```
 
-## Access Control
-
-### Permission Sources
-1. **Creator Permission**: Node creators automatically have admin permission (via node.creator_id)
-2. **Explicit Grants**: Permissions stored in node_access table (one permission per node-user pair)
-3. **Most Permissive Wins**: If multiple permission paths exist, the highest permission applies
-
-### Flux Permission Checks
-For items in flux condition (where item.ascn_id ≠ stem.id), permissions require:
-```
-CHECK_ACCESS(node_id, user_id, required_permission):
-  1. Check direct node access (creator or explicit grant)
-  2. If node is part of flux item:
-     a. Check permission via stem lineage
-     b. Check permission via ascendant lineage  
-     c. Return TRUE only if BOTH grant required permission
-  4. Return result from step 1
-```
-
-### Key Principles
-- Permissions do NOT propagate to descendants
-- Each node has independent access control
-- Composition boundaries enforce security via dual-lineage checks
-- Link permissions are derived from the source node's permissions
-
 ## Tree Mechanics
 
-### Root: Item with ascn_id = NULL
+### Root Detection
+An item is a root when `ascn_id IS NULL`.
 
 ### Item Relationships
 - `ascn_id`: Points to ascendant (assigned on creation)
-- `desc_id`: Points to head of branch
-- `next_id`: Points to next peer in branch
+- `desc_id`: Points to head of descendant branch
+- `next_id`: Points to next peer in current branch
 - **Flux detection**: `descendant.ascn_id ≠ stem.id`
 
 ### Key Queries
 
-#### Get Stem's Branch
-```
-GET BRANCH from stem:
-  GET items WHERE item.ascn_id = stem.id OR item.id = stem.desc_id -- Native descendants and head (head may be in flux)
+#### Get Direct Descendants (Branch Query)
+```sql
+-- Fast lookup via ascn_id index
+SELECT * FROM item WHERE ascn_id = stem_item.id;
 ```
 
 #### Detect Flux Points
+```sql
+-- Find all flux descendants of an item
+SELECT d.* 
+FROM item s  -- stem
+JOIN item d ON s.desc_id = d.id  -- descendant
+WHERE s.id != d.ascn_id;  -- flux detected!
 ```
-DETECT FLUX:
-  FROM stem s
-  JOIN descendant d ON s.desc_id = d.id
-  WHERE s.id ≠ d.ascn_id
+
+#### Get Native Branch
+```sql
+-- Get all native descendants
+SELECT * FROM item WHERE ascn_id = stem_item.id;
+
+## Tree Composition
+
+### Natural Composition
+Tree composition happens when desc_id crosses ancestry boundaries.
+
+#### Example: Composing Document into Folder
+
+Initial state:
+```
+Folder Tree:                         Document Tree:
+A[ascn=NULL]                         D[ascn=NULL]
+└── B[ascn=A]                        └── E[ascn=D]
+    └── C[ascn=B]                        └── F[ascn=E]
+```
+
+Composition operation:
+```sql
+-- Compose document tree under item C
+UPDATE item SET desc_id = 'D' WHERE id = 'C';
+```
+
+Result with flux detection:
+```
+Visual Tree:                         Flux Analysis:
+A                                    
+└── B                                B → C: Native (C.ascn = B)
+    └── C                            C → D: FLUX! (D.ascn ≠ C)
+        └── D                        D → E: Native (E.ascn = D)
+            └── E                    E → F: Native (F.ascn = E)
+                └── F
+```
+
+Query to find flux:
+```sql
+-- Returns D as flux descendant of C
+SELECT d.* FROM item c
+JOIN item d ON c.desc_id = d.id
+WHERE c.id != d.ascn_id;  -- C != D.ascn (NULL)
+```
+
+### Flux Detection Patterns
+
+```sql
+-- Simple flux detection at any point
+SELECT s.id as stem_id, d.id as flux_desc_id
+FROM item s
+JOIN item d ON s.desc_id = d.id
+WHERE s.id != d.ascn_id;
+
+-- Find all flux points in a tree
+WITH RECURSIVE tree AS (
+  SELECT id, ascn_id, desc_id, 0 as depth
+  FROM item WHERE id = root_id
+  UNION ALL
+  SELECT i.id, i.ascn_id, i.desc_id, t.depth + 1
+  FROM item i
+  JOIN tree t ON i.ascn_id = t.id OR t.desc_id = i.id
+)
+SELECT t1.id as stem, t2.id as flux_point
+FROM tree t1
+JOIN tree t2 ON t1.desc_id = t2.id
+WHERE t1.id != t2.ascn_id;
 ```
 
 ## Traversal Algorithms
 
 Two distinct traversal types reflect the dual lineage model:
-- **Ascendant Traversal**: Following ascn_id chains (ascendant lineage)
-- **Stem Traversal**: Following desc_id/next_id chains (stem lineage)
+- **Ascendant Traversal**: Following ascn_id chains (true lineage)
+- **Stem Traversal**: Following desc_id/next_id chains (instantaneous structure)
 
-### Is Head?
+### Ascendant Traversal (Origin Lineage)
+Follows ascn_id relationships - the true parent chain:
 
+```sql
+-- Upward: Find origin ancestors
+WITH RECURSIVE ascendant_chain AS (
+  SELECT * FROM item WHERE id = start_id
+  UNION ALL
+  SELECT i.* FROM item i
+  JOIN ascendant_chain a ON i.id = a.ascn_id
+)
+SELECT * FROM ascendant_chain;
+
+-- Downward: Find native descendants of this item
+SELECT * FROM item WHERE ascn_id = item_id;  -- Fast via index
 ```
-IS HEAD(item):
-  RETURN EXISTS(SELECT 1 FROM item WHERE desc_id = item.id)
-```
 
-### Ascendant Traversal (Ascendant Lineage)
-Follows ascn_id relationships - the ascendant lineage:
+### Stem Traversal (Composed Structure)
+Follows desc_id/next_id relationships - the instantaneous parent chain:
 
-```
-UPWARD: start_id → ascn_id → ascn_id → ... → NULL
+```sql
+-- Full tree traversal
+WITH RECURSIVE stem_tree AS (
+  SELECT *, 0 as depth, ARRAY[id] as path
+  FROM item WHERE id = start_id
+  
+  UNION ALL
+  
+  SELECT i.*, f.depth + 1, f.path || i.id
+  FROM item i
+  JOIN stem_tree s ON s.desc_id = i.id  -- Stem to descendant
+                   OR s.next_id = i.id  -- Peer to peer
+  WHERE NOT (i.id = ANY(f.path))  -- Cycle prevention
+  AND f.depth < 20
+)
+SELECT * FROM stem_tree;
 
-DOWNWARD: Find all with this ascendant
-  GET items WHERE ascn_id = this.id
-```
-
-### Stem Traversal (Stem Lineage)
-Follows desc_id/next_id relationships - the stem lineage:
-
-```
-TRAVERSE from start_id:
-  FOLLOW desc_id → descendant
-  FOLLOW next_id → peer
-  TRACK path for cycles
-  LIMIT depth < 20
-
-DETECT flux WHERE ascn_id ≠ previous.id
+-- Detect flux points during traversal
+SELECT f.*, 
+       CASE WHEN f.ascn_id != LAG(f.id) OVER (ORDER BY path) 
+            THEN true ELSE false END as is_flux
+FROM flux_tree f;
 ```
 
 ## Advantages
@@ -359,7 +404,7 @@ DETECT flux WHERE ascn_id ≠ previous.id
 
 Every FK relationship must define explicit behavior.
 
-**Note**: All IDs under our control are immutable (ON UPDATE RESTRICT). Only external auth.users.id can change, ie by db service provider, so (ON UPDATE CASCADE).
+**Note**: All IDs under our control are immutable (ON UPDATE RESTRICT). Only external auth.users.id can change (ON UPDATE CASCADE).
 
 ### Item Relationships
 ```
@@ -407,7 +452,7 @@ node_access.user_id → auth.users.id
 ### 1. Ascendant Assignment Rules
 - **Root creation**: `ascn_id = NULL`
 - **Native growth**: `new_item.ascn_id = stem.id`  
-- **Flux composition**: `new_item.ascn_id` preserves ascendant lineage
+- **Flux composition**: `new_item.ascn_id` preserves original value
 - **Result**: Flux detectable via `stem.id != descendant.ascn_id`
 
 ### 2. Root Item Management
@@ -458,20 +503,108 @@ Trees have implicit identity:
 
 ## Implementation Challenges
 
-1. **Ascendant Assignment**
-   - Must determine ascn_id at creation time (native vs flux)
-   - Ascn_id immutability must be enforced
-   - Prevents cycles in ascendant chains
+1. **Migration Complexity**
+   - Must establish ascn_id for all existing items
+   - Convert existing tree relationships to ascendant model
+   - Update user entry points
 
-2. **Flux Constraints**
-   - Flux items must always be heads (no next_id references)
-   - Stem owns lifecycle of flux descendants
-   - Requires validation on item operations
+2. **Tree Operations**
+   - All operations are single UPDATE statements (see Common Patterns)
+   - ascn_id immutability preserves origin through all moves
 
-3. **User Entry Points**
-   - Every user needs a root item (head_item_id)
-   - Must be created automatically with user
-   - Provides consistent tree entry
+3. **Cycle Prevention**
+   ```sql
+   CREATE OR REPLACE FUNCTION func_item_prevent_ascn_cycles()
+   RETURNS TRIGGER AS $$
+   DECLARE
+     current_id INTEGER := NEW.ascn_id;
+   BEGIN
+     WHILE current_id IS NOT NULL LOOP
+       IF current_id = NEW.id THEN
+         RAISE EXCEPTION 'Ascendant cycle detected';
+       END IF;
+       SELECT ascn_id INTO current_id FROM item WHERE id = current_id;
+     END LOOP;
+     RETURN NEW;
+   END;
+   $$ LANGUAGE plpgsql;
+   
+   CREATE TRIGGER check_ascn_cycles
+     BEFORE INSERT OR UPDATE ON item
+     FOR EACH ROW
+     EXECUTE FUNCTION func_item_prevent_ascn_cycles();
+   ```
+
+4. **Branch Root Validation**
+   ```sql
+   CREATE OR REPLACE FUNCTION func_item_validate_desc_head()
+   RETURNS TRIGGER AS $$
+   BEGIN
+     IF NEW.desc_id IS NOT NULL THEN
+       -- Check if target is a head (no incoming next_id)
+       IF EXISTS (SELECT 1 FROM item WHERE next_id = NEW.desc_id) THEN
+         RAISE EXCEPTION 'desc_id must point to a head (item with no incoming next_id)';
+       END IF;
+     END IF;
+     RETURN NEW;
+   END;
+   $$ LANGUAGE plpgsql;
+   
+   CREATE TRIGGER check_desc_id_branch_root
+     BEFORE INSERT OR UPDATE ON item
+     FOR EACH ROW
+     WHEN (NEW.desc_id IS DISTINCT FROM OLD.desc_id)
+     EXECUTE FUNCTION func_item_validate_desc_head();
+   ```
+
+5. **User Workspace Creation**
+   ```sql
+   CREATE OR REPLACE FUNCTION func_user_create_head_item()
+   RETURNS TRIGGER AS $$
+   DECLARE
+     head_node_id INTEGER;
+     head_item_id INTEGER;
+   BEGIN
+     IF NEW.head_item_id IS NULL THEN
+       -- Create node for head item
+       INSERT INTO node (type) VALUES ('text')
+       RETURNING id INTO head_node_id;
+       
+       -- Create head item (ascn_id = NULL for roots)
+       INSERT INTO item (node_id, ascn_id) 
+       VALUES (head_node_id, NULL)
+       RETURNING id INTO head_item_id;
+       
+       -- Update user with head item
+       NEW.head_item_id := head_item_id;
+     END IF;
+     RETURN NEW;
+   END;
+   $$ LANGUAGE plpgsql;
+   
+   CREATE TRIGGER ensure_user_has_head
+     BEFORE INSERT ON data_user
+     FOR EACH ROW
+     EXECUTE FUNCTION func_user_create_head_item();
+   ```
+
+6. **Ascendant Immutability**
+   ```sql
+   CREATE OR REPLACE FUNCTION func_item_enforce_ascn_immutability()
+   RETURNS TRIGGER AS $$
+   BEGIN
+     IF OLD.ascn_id IS DISTINCT FROM NEW.ascn_id THEN
+       RAISE EXCEPTION 'ascn_id is immutable after creation';
+     END IF;
+     RETURN NEW;
+   END;
+   $$ LANGUAGE plpgsql;
+   
+   CREATE TRIGGER protect_ascn_id
+     BEFORE UPDATE ON item
+     FOR EACH ROW
+     EXECUTE FUNCTION func_item_enforce_ascn_immutability();
+   ```
 
 ## Edge Cases and Resolutions
 
@@ -482,7 +615,7 @@ Trees have implicit identity:
 
 ### 2. Origin-View Conflicts
 **Issue**: Item's ascendant deleted but stem remains
-**Invariant**: I5 (Dual Lineage Trees)
+**Invariant**: I5 (Dual Parentage)
 **Solution**: CASCADE on ascn_id removes item; view references auto-cleaned
 
 ### 3. Root Proliferation
@@ -501,13 +634,13 @@ Trees have implicit identity:
 - Enables self-referential templates and recursive structures
 
 ### 5. Cross-Tree desc_id
-**Issue**: desc_id points to item in different tree
-**Invariant**: I5 (Dual Lineage Trees)
+**Issue**: desc_id points to item in different origin tree
+**Invariant**: I5 (Dual Parentage)
 **Solution**: Feature not bug - this IS composition
 
 ### 6. Double Composition
 **Issue**: Item appears in multiple trees via different desc_id refs
-**Invariant**: I5 (Dual Lineage Trees)
+**Invariant**: I5 (Dual Parentage)
 **Solution**: Supported - same item can be composed multiple times
 
 ### 7. User Workspace Management
@@ -533,13 +666,13 @@ Trees have implicit identity:
 ## Common Patterns and Solutions
 
 ### Pattern: Tree Composition
-**Issue**: Need to include subtree from different tree
-**Solution**: Use fn_head_item_compose to set desc_id to target item, maintains dual lineage
-**Example**: `SELECT fn_head_item_compose(local_item_id, external_item_id)`
+**Issue**: Need to include subtree from another origin
+**Solution**: Set desc_id to target item, maintains dual lineage
+**Example**: `UPDATE item SET desc_id = foreign_item_id WHERE id = local_item_id`
 
 ### Pattern: Tree Extraction
 **Issue**: Remove composed subtree
-**Solution**: Set desc_id to NULL or next valid head
+**Solution**: Set desc_id to NULL or next valid branch root
 **Example**: `UPDATE item SET desc_id = NULL WHERE id = mount_point_id`
 
 ### Pattern: Origin Preservation
@@ -564,27 +697,26 @@ VALUES (new_node_id, stem_item_id);
 -- Then connect it
 UPDATE item SET desc_id = new_item_id WHERE id = stem_item_id;
 ```
-**Note**: Helper functions like `fn_item_add_desc()` and `fn_item_add_next()` can encapsulate ascn_id inheritance
+**Note**: Helper functions like `item_add_desc()` and `item_add_next()` can encapsulate ascn_id inheritance
 
 ### Pattern: Permission Checking
 **Issue**: Determine access for composed items
 **Solution**: Check node_access for item's node, considering flux boundaries
 **Notes**:
 - Simple case: Check `node_access` for `item.node_id`
-- Flux consideration: May need to check both ascendant and stem lineages
+- Flux consideration: May need to check both origin and view paths
 - Implementation varies by security requirements
 - Start simple, enhance based on actual needs
 
-
-## Appendices
-
-### Alternative Architectures
+## Alternative Architectures Explored
 
 - **Mount-Based** (architecture.md): Uses memo indirection for tree composition
 - **Fork-Based** (architecture.forks.md): Every item carries memo_id for tree membership
 - **Memo-ID Based**: Similar to fork-based but with different update semantics
 
 This ascendant-based approach was selected for its schema simplicity and natural composition model.
+
+## Concerns, Trade-Offs, and Future Work
 
 ### Key Trade-Offs
 
@@ -596,7 +728,7 @@ This ascendant-based approach was selected for its schema simplicity and natural
 2. **Dual Traversal Complexity**
    - Cost: Two traversal patterns to understand
    - Benefit: Rich composition semantics  
-   - Key distinction: Ascendant lineage (ascn_id) vs Stem lineage (desc_id)
+   - Key distinction: Ascendant = true parent (ascn_id), Stem = instantaneous parent (desc_id)
    - Mitigation: Clear documentation, helper functions
 
 3. **Integer IDs vs UUIDs**
@@ -612,23 +744,13 @@ This ascendant-based approach was selected for its schema simplicity and natural
    
 2. **Permission Boundary Complexity**
    - Flux points create security boundaries
-   - Solution: Start simple, enhance as needed, least permissive wins
-
+   - Solution: Start simple, enhance as needed
+   
 3. **Missing Helper Functions**
    - Native growth requires manual ascn_id management
-   - Plan: `fn_item_add_desc()`, `fn_item_add_next()` functions
+   - Plan: `item_add_desc()`, `item_add_next()` functions
 
-### Exclusions
-
-#### User Table Design Decision
-
-**Users as data_user (chosen)** vs dedicated users table:
-1. **Consistency wins**: Users follow universal node pattern, enabling user workspaces and social features
-2. **Performance acceptable**: Join overhead negligible vs architectural benefits
-3. **Extensibility preserved**: User relationships, metadata naturally fit node/item/link patterns
-4. **Mitigation available**: If performance critical, use materialized views or caching for auth flows
-
-#### Future Optimizations
+### Future Optimizations
 
 **When Scale Demands:**
 - Materialized paths for hot traversal routes
@@ -636,12 +758,15 @@ This ascendant-based approach was selected for its schema simplicity and natural
 - Read replicas for complex tree queries
 - Caching layer for flux detection
 
-**When Testing Demands:**
-- Mock data generation for performance testing eg `seed.sql`
-
 **Possible Extensions:**
 - Composition metadata (who/when/why)
 - Tree versioning and history
+- Multi-ascendant support (DAG structure)
+- Bulk tree operations
 
-**For fun:**
-- Spatial indexing for tile-based queries
+### Deferred Decisions
+
+1. **Permission Model Details**: Origin-only, view-only, or both?
+2. **Tree Enumeration**: How to efficiently list all trees?
+3. **Migration Tooling**: From mount-based architecture
+4. **Adoption Semantics**: Should ascn_id ever be mutable?

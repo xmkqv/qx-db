@@ -1,19 +1,5 @@
 # Dual Lineage Tree Architecture
 
-## Conventions
-
-- **Naming**:
-  - indexes: `index_data_<table>__<fields_separated_by__>`
-  - functions: `fn_data_<table>_<verb_object>`
-  - triggers: `trigger_data_<table>_<event>_<verb_object>`
-  - data tables: `data_<TYPE>` (lowercase, underscore-separated)
-  - migration files: 
-    - `YYYYMMDDHHMMSS_<...>.sql` - generic pattern
-    - `YYYYMMDDHHMMSS_<table>_init.sql` - initial table creation
-    - `YYYYMMDDHHMMSS_<table>_<update>.sql` - changes to existing tables
-    - `YYYYMMDDHHMMSS_data_<table>.sql` - data migrations
-  - policies: descriptive names in quotes
-
 ## Invariants: Irreducible Requirements
 
 **Terms**:
@@ -97,7 +83,7 @@ Cycles in tree composition are explicitly allowed (except self-reference). Trave
 ### P7: Flux-Aware Permissions (from I7)
 - Native descendants inherit stem permissions naturally
 - Flux descendants require checks on both lineages
-- Least permissive wins at flux boundaries (must have permission via BOTH paths)
+- Least permissive wins at flux boundaries
 - Security preserved across tree composition
 
 ## Critical Design Decisions
@@ -148,7 +134,7 @@ CREATE TABLE node (
   type NodeType NOT NULL,  -- Immutable after creation
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  creator_id UUID REFERENCES auth.users(id) ON DELETE SET NULL  -- Creator has automatic admin permission
+  creator_id UUID REFERENCES auth.users(id) ON DELETE SET NULL
 );
 
 -- Enhanced item table with ascn_id
@@ -226,15 +212,21 @@ CREATE TABLE node_access (
   UNIQUE(node_id, user_id)
 );
 
--- Link permissions derived from src node - no separate table needed
+CREATE TABLE link_access (
+  id SERIAL PRIMARY KEY,
+  link_id INTEGER NOT NULL REFERENCES link(id) ON DELETE CASCADE,
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  permission PermissionType NOT NULL,
+  UNIQUE(link_id, user_id)
+);
 ```
 
 ### Type Definitions
 
 ```sql
 NodeType: ENUM('text', 'file', 'user')
-FileType: ENUM('png')
-PermissionType: ENUM('view', 'edit', 'admin')  -- Hierarchy: view < edit < admin
+FileType: ENUM('png', 'jpg', 'pdf', 'mp4', 'json')
+PermissionType: ENUM('view', 'edit', 'admin')
 ```
 
 ### Indexes
@@ -251,31 +243,6 @@ CREATE INDEX index_item__root ON item(id) WHERE ascn_id IS NULL;  -- Find roots
 CREATE INDEX index_item__id__ascn_id ON item(id, ascn_id);  -- Origin chain
 CREATE INDEX index_item__desc_id_not_null ON item(id) WHERE desc_id IS NOT NULL;  -- Heads
 ```
-
-## Access Control
-
-### Permission Sources
-1. **Creator Permission**: Node creators automatically have admin permission (via node.creator_id)
-2. **Explicit Grants**: Permissions stored in node_access table (one permission per node-user pair)
-3. **Most Permissive Wins**: If multiple permission paths exist, the highest permission applies
-
-### Flux Permission Checks
-For items in flux condition (where item.ascn_id ≠ stem.id), permissions require:
-```
-CHECK_ACCESS(node_id, user_id, required_permission):
-  1. Check direct node access (creator or explicit grant)
-  2. If node is part of flux item:
-     a. Check permission via stem lineage
-     b. Check permission via ascendant lineage  
-     c. Return TRUE only if BOTH grant required permission
-  4. Return result from step 1
-```
-
-### Key Principles
-- Permissions do NOT propagate to descendants
-- Each node has independent access control
-- Composition boundaries enforce security via dual-lineage checks
-- Link permissions are derived from the source node's permissions
 
 ## Tree Mechanics
 
@@ -339,6 +306,56 @@ TRAVERSE from start_id:
 DETECT flux WHERE ascn_id ≠ previous.id
 ```
 
+## Tree Composition
+
+### Natural Composition
+Tree composition happens when desc_id crosses ancestry boundaries.
+
+#### Example: Composing Document into Folder
+
+Initial state:
+```
+Folder Tree:                         Document Tree:
+A[ascn=NULL]                         D[ascn=NULL]
+└── B[ascn=A]                        └── E[ascn=D]
+    └── C[ascn=B]                        └── F[ascn=E]
+```
+
+Composition operation:
+```
+COMPOSE: C.desc_id → D
+```
+
+Result with flux detection:
+```
+Stem Tree:                          Flux Analysis:
+A                                    
+└── B                                B → C: Native (C.ascn = B)
+    └── C                            C → D: FLUX! (D.ascn ≠ C)
+        └── D                        D → E: Native (E.ascn = D)
+            └── E                    E → F: Native (F.ascn = E)
+                └── F
+```
+
+Query to find flux:
+```
+FLUX CHECK: C → D
+  C.id (C) ≠ D.ascn_id (NULL) ✓ FLUX
+```
+
+### Flux Detection Patterns
+
+```
+FIND ALL FLUX:
+  FOR each stem-descendant pair
+  WHERE stem.id ≠ descendant.ascn_id
+  
+TREE-WIDE FLUX SCAN:
+  TRAVERSE tree following ascn_id OR desc_id
+  IDENTIFY all stem → descendant
+  WHERE stem.id ≠ descendant.ascn_id
+```
+
 ## Advantages
 
 1. **Normalized Structure**: Direct tree relationships without abstraction layers
@@ -367,7 +384,7 @@ item.ascn_id → item.id
   ON DELETE CASCADE  -- Delete ascendant → delete native descendants
   
 item.desc_id → item.id
-item.next_id → item.id
+item.prev_id → item.id
   ON DELETE TRIGGER  -- Complex repointing (see Deletion Matrix)
   
 item.node_id → node.id  
@@ -448,11 +465,11 @@ Trees have implicit identity:
 
 ## Comparison with Other Approaches
 
-### Mount-Based (Current)
+### Mount-Based (Previous)
 - **Pros**: Explicit tree identity, efficient tree queries, clear separation
 - **Cons**: Indirection complexity, mount resolution overhead, extra entities
 
-### Memo-ID Based (Alternative)
+### Fork-Based (Alternative)
 - **Pros**: Direct tree membership, set operations on trees
 - **Cons**: Redundant memo_id on every item, complex updates
 
@@ -464,7 +481,7 @@ Trees have implicit identity:
    - Prevents cycles in ascendant chains
 
 2. **Flux Constraints**
-   - Flux items must always be heads (no next_id references)
+   - Flux items must always be heads (no incoming next_id references)
    - Stem owns lifecycle of flux descendants
    - Requires validation on item operations
 
@@ -482,7 +499,7 @@ Trees have implicit identity:
 
 ### 2. Origin-View Conflicts
 **Issue**: Item's ascendant deleted but stem remains
-**Invariant**: I5 (Dual Lineage Trees)
+**Invariant**: I5 (Tree Composition)
 **Solution**: CASCADE on ascn_id removes item; view references auto-cleaned
 
 ### 3. Root Proliferation
@@ -502,12 +519,12 @@ Trees have implicit identity:
 
 ### 5. Cross-Tree desc_id
 **Issue**: desc_id points to item in different tree
-**Invariant**: I5 (Dual Lineage Trees)
+**Invariant**: I5 (Tree Composition)
 **Solution**: Feature not bug - this IS composition
 
 ### 6. Double Composition
 **Issue**: Item appears in multiple trees via different desc_id refs
-**Invariant**: I5 (Dual Lineage Trees)
+**Invariant**: I5 (Tree Composition)
 **Solution**: Supported - same item can be composed multiple times
 
 ### 7. User Workspace Management
@@ -534,8 +551,8 @@ Trees have implicit identity:
 
 ### Pattern: Tree Composition
 **Issue**: Need to include subtree from different tree
-**Solution**: Use fn_head_item_compose to set desc_id to target item, maintains dual lineage
-**Example**: `SELECT fn_head_item_compose(local_item_id, external_item_id)`
+**Solution**: Set desc_id to target item, maintains dual lineage
+**Example**: `UPDATE item SET desc_id = external_item_id WHERE id = local_item_id`
 
 ### Pattern: Tree Extraction
 **Issue**: Remove composed subtree
@@ -564,7 +581,7 @@ VALUES (new_node_id, stem_item_id);
 -- Then connect it
 UPDATE item SET desc_id = new_item_id WHERE id = stem_item_id;
 ```
-**Note**: Helper functions like `fn_item_add_desc()` and `fn_item_add_next()` can encapsulate ascn_id inheritance
+**Note**: Helper functions like `item_add_desc()` and `item_add_next()` can encapsulate ascn_id inheritance
 
 ### Pattern: Permission Checking
 **Issue**: Determine access for composed items
@@ -575,16 +592,14 @@ UPDATE item SET desc_id = new_item_id WHERE id = stem_item_id;
 - Implementation varies by security requirements
 - Start simple, enhance based on actual needs
 
+## Alternative Architectures Explored
 
-## Appendices
+- **Mount-Based**: Uses memo indirection for tree composition
+- **Fork-Based**: Every item carries memo_id for tree membership
 
-### Alternative Architectures
+This dual lineage approach was selected for its schema simplicity and natural composition model.
 
-- **Mount-Based** (architecture.md): Uses memo indirection for tree composition
-- **Fork-Based** (architecture.forks.md): Every item carries memo_id for tree membership
-- **Memo-ID Based**: Similar to fork-based but with different update semantics
-
-This ascendant-based approach was selected for its schema simplicity and natural composition model.
+## Concerns, Trade-Offs, and Future Work
 
 ### Key Trade-Offs
 
@@ -612,23 +627,13 @@ This ascendant-based approach was selected for its schema simplicity and natural
    
 2. **Permission Boundary Complexity**
    - Flux points create security boundaries
-   - Solution: Start simple, enhance as needed, least permissive wins
-
+   - Solution: Start simple, enhance as needed
+   
 3. **Missing Helper Functions**
    - Native growth requires manual ascn_id management
-   - Plan: `fn_item_add_desc()`, `fn_item_add_next()` functions
+   - Plan: `item_add_desc()`, `item_add_next()` functions
 
-### Exclusions
-
-#### User Table Design Decision
-
-**Users as data_user (chosen)** vs dedicated users table:
-1. **Consistency wins**: Users follow universal node pattern, enabling user workspaces and social features
-2. **Performance acceptable**: Join overhead negligible vs architectural benefits
-3. **Extensibility preserved**: User relationships, metadata naturally fit node/item/link patterns
-4. **Mitigation available**: If performance critical, use materialized views or caching for auth flows
-
-#### Future Optimizations
+### Future Optimizations
 
 **When Scale Demands:**
 - Materialized paths for hot traversal routes
@@ -636,12 +641,15 @@ This ascendant-based approach was selected for its schema simplicity and natural
 - Read replicas for complex tree queries
 - Caching layer for flux detection
 
-**When Testing Demands:**
-- Mock data generation for performance testing eg `seed.sql`
-
 **Possible Extensions:**
 - Composition metadata (who/when/why)
 - Tree versioning and history
+- Multi-ascendant support (DAG structure)
+- Bulk tree operations
 
-**For fun:**
-- Spatial indexing for tile-based queries
+### Deferred Decisions
+
+1. **Permission Model Details**: Origin-only, view-only, or both?
+2. **Tree Enumeration**: How to efficiently list all trees?
+3. **Migration Tooling**: From mount-based architecture
+4. **Adoption Semantics**: Should ascn_id ever be mutable?
