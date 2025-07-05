@@ -56,7 +56,7 @@ CREATE TRIGGER trigger_data_file_insert_update_update_node
 ALTER TABLE data_file ENABLE ROW LEVEL SECURITY;
 
 -- Standard policy: delegate to node_permission
-CREATE POLICY "Data follows node access" ON data_file
+CREATE POLICY "data_file_all_policy" ON data_file
   FOR ALL
   USING (
     EXISTS (

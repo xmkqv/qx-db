@@ -32,13 +32,13 @@ CREATE DOMAIN dimension AS INTEGER
 -- =============================================================================
 
 -- Function to check if array contains any of the given values
-CREATE OR REPLACE FUNCTION array_contains_any(arr anyarray, vals anyarray)
+CREATE OR REPLACE FUNCTION fn_util_array_contains_any(arr anyarray, vals anyarray)
 RETURNS BOOLEAN AS $$
   SELECT arr && vals;
 $$ LANGUAGE sql IMMUTABLE;
 
 -- Function to get the highest permission from an array
-CREATE OR REPLACE FUNCTION highest_permission(perms text[])
+CREATE OR REPLACE FUNCTION fn_util_highest_permission(perms text[])
 RETURNS text AS $$
   SELECT CASE
     WHEN 'admin' = ANY(perms) THEN 'admin'
@@ -53,7 +53,7 @@ $$ LANGUAGE sql IMMUTABLE;
 -- =============================================================================
 
 -- Function to safely aggregate node data with type information
-CREATE OR REPLACE FUNCTION node_data_json(p_node_id INTEGER)
+CREATE OR REPLACE FUNCTION fn_node_data_json(p_node_id INTEGER)
 RETURNS JSONB AS $$
   SELECT jsonb_build_object(
     'node_id', n.id,

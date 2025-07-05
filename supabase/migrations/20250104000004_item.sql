@@ -12,6 +12,7 @@ CREATE TABLE item (
   desc_id INTEGER REFERENCES item(id),  -- Head of branch (will add trigger)
   next_id INTEGER REFERENCES item(id),  -- Next peer (will add trigger)
   tile_id INTEGER REFERENCES tile(id) ON DELETE SET NULL,  -- NULL = no visual yet
+  is_root BOOLEAN GENERATED ALWAYS AS (ascn_id IS NULL) STORED,  -- Computed root indicator
   CHECK (id != ascn_id AND id != desc_id AND id != next_id)  -- No self-reference
 );
 
@@ -286,7 +287,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to get branch (all descendants of an item, native and flux) using advanced CTE
-CREATE OR REPLACE FUNCTION get_branch(p_item_id INTEGER)
+CREATE OR REPLACE FUNCTION fn_item_get_branch(p_item_id INTEGER)
 RETURNS TABLE(
   item_id INTEGER,
   node_id INTEGER,
@@ -337,7 +338,7 @@ ORDER BY item_id, depth;
 $$ LANGUAGE sql;
 
 -- Function to detect if an item is in a flux condition
-CREATE OR REPLACE FUNCTION item_in_flux(p_item_id INTEGER)
+CREATE OR REPLACE FUNCTION fn_item_in_flux(p_item_id INTEGER)
 RETURNS BOOLEAN AS $$
 DECLARE
   result BOOLEAN;
@@ -351,6 +352,35 @@ BEGIN
   ) INTO result;
   
   RETURN result;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Function to check item access
+CREATE OR REPLACE FUNCTION fn_item_check_access(
+  p_item_id INTEGER,
+  p_user_id UUID,
+  p_required_permission PermissionType DEFAULT 'view'
+) RETURNS BOOLEAN AS $$
+DECLARE
+  item_node_id INTEGER;
+BEGIN
+  -- Get the node_id for this item
+  SELECT node_id INTO item_node_id
+  FROM item
+  WHERE id = p_item_id;
+  
+  IF item_node_id IS NULL THEN
+    RETURN FALSE;
+  END IF;
+  
+  -- Check if user has required permission on the node
+  RETURN EXISTS(
+    SELECT 1 
+    FROM node_permission 
+    WHERE node_id = item_node_id 
+    AND user_id = p_user_id 
+    AND permission >= p_required_permission
+  );
 END;
 $$ LANGUAGE plpgsql;
 

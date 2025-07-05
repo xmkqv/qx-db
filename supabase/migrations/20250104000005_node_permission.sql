@@ -12,7 +12,7 @@ CREATE TYPE PermissionType AS ENUM ('view', 'edit', 'admin');
 -- =============================================================================
 
 -- Function to compare permissions (returns true if left >= right)
-CREATE OR REPLACE FUNCTION permission_gte(left_perm PermissionType, right_perm PermissionType)
+CREATE OR REPLACE FUNCTION fn_permission_gte(left_perm PermissionType, right_perm PermissionType)
 RETURNS BOOLEAN AS $$
   SELECT 
     CASE left_perm
@@ -26,7 +26,7 @@ $$ LANGUAGE sql IMMUTABLE;
 CREATE OPERATOR >= (
   LEFTARG = PermissionType,
   RIGHTARG = PermissionType,
-  FUNCTION = permission_gte
+  FUNCTION = fn_permission_gte
 );
 
 -- =============================================================================
@@ -62,7 +62,7 @@ CREATE VIEW node_permission AS
 SELECT 
   node_id, 
   user_id,
-  highest_permission(array_agg(permission::text))::PermissionType as permission
+  fn_util_highest_permission(array_agg(permission::text))::PermissionType as permission
 FROM (
   -- Explicit grants
   SELECT node_id, user_id, permission 

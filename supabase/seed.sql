@@ -2,8 +2,18 @@
 -- This file can be used to populate the database with initial test data
 
 -- Example: Create a test user with some content
--- INSERT INTO data_user (username, display_name) VALUES ('test_user', 'Test User');
--- INSERT INTO data_text (content) VALUES ('Hello, this is test content!');
--- INSERT INTO data_file (type, bytes, uri) VALUES ('md', '\x48656c6c6f', '/test/hello.md');
-
--- Note: The trigger_data_insert() function will automatically create nodes for these entries
+-- Note: Nodes must be created first, then data can be linked to them
+-- 
+-- -- Create nodes
+-- INSERT INTO node (type, creator_id) VALUES 
+--   ('user', auth.uid()),
+--   ('text', auth.uid()),
+--   ('file', auth.uid());
+--
+-- -- Create data linked to nodes (assuming node IDs 1, 2, 3)
+-- INSERT INTO data_user (node_id, user_id, username) VALUES 
+--   (1, auth.uid(), 'test_user');
+-- INSERT INTO data_text (node_id, content) VALUES 
+--   (2, 'Hello, this is test content!');
+-- INSERT INTO data_file (node_id, type, bytea) VALUES 
+--   (3, 'png', '\x48656c6c6f');
