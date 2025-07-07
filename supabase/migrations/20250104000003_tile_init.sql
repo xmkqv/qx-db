@@ -1,7 +1,7 @@
 -- Migration: Tile table
 
 -- =============================================================================
--- TABLE DEFINITION
+-- Table definition
 -- =============================================================================
 
 -- Tile table with spatial constraints
@@ -20,31 +20,23 @@ CREATE TABLE tile (
 );
 
 -- =============================================================================
--- INDEXES
+-- Indexes
 -- =============================================================================
-
--- Indexes for tile table
 CREATE INDEX index_tile__x__y ON tile(x, y);
 -- Index for spatial queries using generated columns
 CREATE INDEX index_tile__bounds ON tile(x, y, x_max, y_max);
 
 -- =============================================================================
--- ROW LEVEL SECURITY
+-- Row level security
 -- =============================================================================
 
 -- Enable RLS on tile table
 ALTER TABLE tile ENABLE ROW LEVEL SECURITY;
 
--- Tile table policies
+-- Basic tile policies - will be enhanced after item table is created
 CREATE POLICY "tile_select_policy" ON tile
   FOR SELECT
-  USING (
-    id IN (
-      SELECT tile_id FROM item 
-      WHERE fn_item_check_access(id, auth.uid(), 'view')
-      AND tile_id IS NOT NULL
-    )
-  );
+  USING (TRUE);  -- Temporarily allow all selects, will be restricted via items
 
 CREATE POLICY "tile_insert_policy" ON tile
   FOR INSERT
@@ -52,20 +44,8 @@ CREATE POLICY "tile_insert_policy" ON tile
 
 CREATE POLICY "tile_update_policy" ON tile
   FOR UPDATE
-  USING (
-    id IN (
-      SELECT tile_id FROM item 
-      WHERE fn_item_check_access(id, auth.uid(), 'edit')
-      AND tile_id IS NOT NULL
-    )
-  );
+  USING (TRUE);  -- Temporarily allow all updates, will be restricted via items
 
 CREATE POLICY "tile_delete_policy" ON tile
   FOR DELETE
-  USING (
-    id IN (
-      SELECT tile_id FROM item 
-      WHERE fn_item_check_access(id, auth.uid(), 'admin')
-      AND tile_id IS NOT NULL
-    )
-  );
+  USING (TRUE);  -- Temporarily allow all deletes, will be restricted via items

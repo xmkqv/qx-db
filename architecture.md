@@ -510,8 +510,8 @@ Trees have implicit identity:
 
 ### Pattern: Tree Composition
 **Issue**: Need to include subtree from different tree
-**Solution**: Use fn_head_item_compose to set desc_id to target item, maintains dual lineage
-**Example**: `SELECT fn_head_item_compose(local_item_id, external_item_id)`
+**Solution**: Use fn_item_compose to set desc_id to target item, maintains dual lineage
+**Example**: `SELECT fn_item_compose(local_item_id, external_item_id)`
 
 ### Pattern: Tree Extraction
 **Issue**: Remove composed subtree
@@ -562,6 +562,7 @@ UPDATE item SET desc_id = new_item_id WHERE id = stem_item_id;
 - Composition metadata (who/when/why)
 - Tree versioning and history
 - Spatial/Geometric/x/y/viewbox indexes eg `tile.x`, `tile.y`, `tile.viewbox_x`, `tile.viewbox_y`
+- Performance monitoring and query optimization tracking
 
 ## Appendices
 

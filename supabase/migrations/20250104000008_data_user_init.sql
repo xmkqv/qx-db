@@ -86,8 +86,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trigger_data_user_update_update_node
-  AFTER UPDATE ON data_user
+CREATE TRIGGER trigger_data_user_insert_update_update_node
+  AFTER INSERT OR UPDATE ON data_user
   FOR EACH ROW
   EXECUTE FUNCTION fn_data_user_update_node();
 
@@ -104,9 +104,16 @@ CREATE POLICY "Users see accessible user data" ON data_user
   USING (
     user_id = auth.uid() OR
     EXISTS (
-      SELECT 1 FROM node_permission
-      WHERE node_id = data_user.node_id 
-      AND user_id = auth.uid()
+      SELECT 1 FROM node n
+      WHERE n.id = data_user.node_id 
+      AND (
+        n.creator_id = auth.uid() OR
+        EXISTS (
+          SELECT 1 FROM node_access na
+          WHERE na.node_id = n.id
+          AND na.user_id = auth.uid()
+        )
+      )
     )
   );
 
@@ -126,9 +133,16 @@ CREATE POLICY "Users delete user data" ON data_user
   FOR DELETE
   USING (
     EXISTS (
-      SELECT 1 FROM node_permission
-      WHERE node_id = data_user.node_id 
-      AND user_id = auth.uid()
-      AND permission = 'admin'
+      SELECT 1 FROM node n
+      WHERE n.id = data_user.node_id 
+      AND (
+        n.creator_id = auth.uid() OR
+        EXISTS (
+          SELECT 1 FROM node_access na
+          WHERE na.node_id = n.id
+          AND na.user_id = auth.uid()
+          AND na.permission = 'admin'
+        )
+      )
     )
   );

@@ -28,15 +28,17 @@ qx-db/
     ├── config.toml
     ├── seed.sql           # (empty) Database seed data
     └── migrations/
-        ├── 20250104000000_core_infrastructure.sql  # ENUMs, utilities
-        ├── 20250104000001_node.sql                 # Node table
-        ├── 20250104000002_tile.sql                 # Tile table
-        ├── 20250104000003_link.sql                 # Link table
-        ├── 20250104000004_item.sql                 # Item table (dual lineage)
-        ├── 20250104000005_node_permission.sql      # Access control
-        ├── 20250104000006_data_text.sql            # Text data
-        ├── 20250104000007_data_file.sql            # File data
-        └── 20250104000008_data_user.sql            # User data
+        ├── 20250104000000_core_infrastructure.sql     # ENUMs, utilities
+        ├── 20250104000001_node_access_init.sql       # Access control
+        ├── 20250104000002_node_init.sql               # Node table
+        ├── 20250104000003_tile_init.sql               # Tile table
+        ├── 20250104000004_link_init.sql               # Link table
+        ├── 20250104000005_item_init.sql               # Item table (dual lineage)
+        ├── 20250104000006_data_text_init.sql          # Text data
+        ├── 20250104000007_data_file_init.sql          # File data
+        ├── 20250104000008_data_user_init.sql          # User data
+        ├── 20250104000009_node_data_json_function.sql # JSON aggregation
+        └── 20250104000011_user_workspace_roots_view.sql # User workspace view
 ```
 
 ### implementation.md: Structure

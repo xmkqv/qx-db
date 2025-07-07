@@ -25,7 +25,6 @@ CREATE TABLE data_text (
 -- Standard indexes
 CREATE INDEX index_data_text__node_id ON data_text(node_id);
 
--- Full-text search index
 CREATE INDEX index_data_text__content_fts ON data_text USING gin(to_tsvector('english', content));
 
 -- =============================================================================
@@ -53,13 +52,20 @@ CREATE TRIGGER trigger_data_text_insert_update_update_node
 -- Enable RLS on data table
 ALTER TABLE data_text ENABLE ROW LEVEL SECURITY;
 
--- Standard policy: delegate to node_permission
-CREATE POLICY "data_text_all_policy" ON data_text
+-- Standard policy: check permissions directly
+CREATE POLICY "Data follows node access" ON data_text
   FOR ALL
   USING (
     EXISTS (
-      SELECT 1 FROM node_permission
-      WHERE node_id = data_text.node_id 
-      AND user_id = auth.uid()
+      SELECT 1 FROM node n
+      WHERE n.id = data_text.node_id 
+      AND (
+        n.creator_id = auth.uid() OR
+        EXISTS (
+          SELECT 1 FROM node_access na
+          WHERE na.node_id = n.id
+          AND na.user_id = auth.uid()
+        )
+      )
     )
   );

@@ -1,7 +1,7 @@
 -- Migration: Item table with dual lineage
 
 -- =============================================================================
--- TABLE DEFINITION
+-- Table definition
 -- =============================================================================
 
 -- Enhanced item table with ascn_id for dual lineage
@@ -17,22 +17,20 @@ CREATE TABLE item (
 );
 
 -- =============================================================================
--- INDEXES
+-- Indexes
 -- =============================================================================
 
--- Core indexes for traversal
-CREATE INDEX index_item__ascn_id ON item(ascn_id);  -- Find native descendants
-CREATE INDEX index_item__desc_id ON item(desc_id);  -- Find heads
-CREATE INDEX index_item__next_id ON item(next_id);  -- Find peers
-CREATE INDEX index_item__node_id ON item(node_id);  -- Find by content
-CREATE INDEX index_item__root ON item(id) WHERE ascn_id IS NULL;  -- Find roots
+CREATE INDEX index_item__ascn_id ON item(ascn_id);
+CREATE INDEX index_item__desc_id ON item(desc_id);
+CREATE INDEX index_item__next_id ON item(next_id);
+CREATE INDEX index_item__node_id ON item(node_id);
+CREATE INDEX index_item__root ON item(id) WHERE ascn_id IS NULL;
 
--- Performance indexes
-CREATE INDEX index_item__id__ascn_id ON item(id, ascn_id);  -- Origin chain
-CREATE INDEX index_item__desc_id_not_null ON item(id) WHERE desc_id IS NOT NULL;  -- Heads
+CREATE INDEX index_item__id__ascn_id ON item(id, ascn_id);
+CREATE INDEX index_item__desc_id_not_null ON item(id) WHERE desc_id IS NOT NULL;
 
 -- =============================================================================
--- FUNCTIONS AND TRIGGERS
+-- Functions and triggers
 -- =============================================================================
 
 -- Function to check for cycles in ascn_id chain
@@ -115,14 +113,11 @@ BEGIN
   IF is_root THEN
     IF has_native_desc THEN
       -- R1: Cascade delete (handled by FK CASCADE)
-      NULL;
     ELSIF acts_as_head THEN
       -- R2: Head repoint
       UPDATE item SET desc_id = NULL WHERE desc_id = OLD.id;
-    ELSE
-      -- R3: Simple delete
-      NULL;
     END IF;
+    -- R3: Simple delete
   ELSE
     -- Non-root cases
     IF has_native_desc THEN
@@ -150,10 +145,8 @@ BEGIN
     ELSIF has_peers THEN
       -- P1: Peer splice
       UPDATE item SET next_id = OLD.next_id WHERE id = predecessor_id;
-    ELSE
-      -- T1: Terminal delete
-      NULL;
     END IF;
+    -- T1: Terminal delete
   END IF;
   
   RETURN OLD;
@@ -186,19 +179,19 @@ CREATE TRIGGER trigger_item_delete_handle_deletion
   EXECUTE FUNCTION fn_item_handle_deletion();
 
 -- Add cycle detection trigger
-CREATE TRIGGER trigger_item_insert_update_check_ascn_cycle
+CREATE TRIGGER trigger_item_insert_update_check_cycle
   BEFORE INSERT OR UPDATE OF ascn_id ON item
   FOR EACH ROW
   EXECUTE FUNCTION fn_item_check_ascn_cycle();
 
-CREATE CONSTRAINT TRIGGER trigger_item_insert_update_check_flux_constraint
+CREATE CONSTRAINT TRIGGER trigger_item_insert_update_check_flux
   AFTER INSERT OR UPDATE ON item
   DEFERRABLE INITIALLY DEFERRED
   FOR EACH ROW
   EXECUTE FUNCTION fn_item_check_flux_constraint();
 
 -- =============================================================================
--- ITEM HELPER FUNCTIONS
+-- Item helper functions
 -- =============================================================================
 
 -- Helper function to add a descendant to an item (handles ascn_id assignment)
@@ -256,7 +249,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to compose a tree (creates flux)
-CREATE OR REPLACE FUNCTION fn_head_item_compose(
+CREATE OR REPLACE FUNCTION fn_item_compose(
   p_stem_id INTEGER,
   p_target_item_id INTEGER
 ) RETURNS VOID AS $$
@@ -375,8 +368,11 @@ BEGIN
   
   -- Check if user has required permission on the node
   RETURN EXISTS(
-    SELECT 1 
-    FROM node_permission 
+    SELECT 1 FROM node 
+    WHERE id = item_node_id 
+    AND creator_id = p_user_id
+  ) OR EXISTS(
+    SELECT 1 FROM node_access
     WHERE node_id = item_node_id 
     AND user_id = p_user_id 
     AND permission >= p_required_permission
@@ -385,7 +381,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =============================================================================
--- ROW LEVEL SECURITY
+-- Row level security
 -- =============================================================================
 
 -- Enable RLS on item table
@@ -395,16 +391,22 @@ ALTER TABLE item ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "item_select_policy" ON item
   FOR SELECT
   USING (
-    node_id IN (SELECT node_id FROM node_permission WHERE user_id = auth.uid())
+    node_id IN (
+      SELECT id FROM node WHERE creator_id = auth.uid()
+      UNION
+      SELECT node_id FROM node_access WHERE user_id = auth.uid()
+    )
   );
 
 CREATE POLICY "item_insert_policy" ON item
   FOR INSERT
   WITH CHECK (
     node_id IN (
-      SELECT node_id FROM node_permission 
+      SELECT id FROM node WHERE creator_id = auth.uid()
+      UNION
+      SELECT node_id FROM node_access 
       WHERE user_id = auth.uid() 
-      AND permission IN ('edit', 'admin')
+      AND permission >= 'edit'::PermissionType
     )
   );
 
@@ -412,9 +414,11 @@ CREATE POLICY "item_update_policy" ON item
   FOR UPDATE
   USING (
     node_id IN (
-      SELECT node_id FROM node_permission 
+      SELECT id FROM node WHERE creator_id = auth.uid()
+      UNION
+      SELECT node_id FROM node_access 
       WHERE user_id = auth.uid() 
-      AND permission IN ('edit', 'admin')
+      AND permission >= 'edit'::PermissionType
     )
   );
 
@@ -422,8 +426,76 @@ CREATE POLICY "item_delete_policy" ON item
   FOR DELETE
   USING (
     node_id IN (
-      SELECT node_id FROM node_permission 
+      SELECT id FROM node WHERE creator_id = auth.uid()
+      UNION
+      SELECT node_id FROM node_access 
       WHERE user_id = auth.uid() 
-      AND permission = 'admin'
+      AND permission = 'admin'::PermissionType
+    )
+  );
+
+-- =============================================================================
+-- Enhanced tile policies now that item table exists
+-- =============================================================================
+
+-- Drop basic tile policies
+DROP POLICY "tile_select_policy" ON tile;
+DROP POLICY "tile_update_policy" ON tile;
+DROP POLICY "tile_delete_policy" ON tile;
+
+-- Create enhanced policies that check permissions through items
+CREATE POLICY "tile_select_policy" ON tile
+  FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM item i
+      JOIN node n ON n.id = i.node_id
+      WHERE i.tile_id = tile.id
+      AND (
+        n.creator_id = auth.uid() OR
+        EXISTS (
+          SELECT 1 FROM node_access na
+          WHERE na.node_id = n.id
+          AND na.user_id = auth.uid()
+        )
+      )
+    )
+  );
+
+CREATE POLICY "tile_update_policy" ON tile
+  FOR UPDATE
+  USING (
+    EXISTS (
+      SELECT 1 FROM item i
+      JOIN node n ON n.id = i.node_id
+      WHERE i.tile_id = tile.id
+      AND (
+        n.creator_id = auth.uid() OR
+        EXISTS (
+          SELECT 1 FROM node_access na
+          WHERE na.node_id = n.id
+          AND na.user_id = auth.uid()
+          AND na.permission >= 'edit'::PermissionType
+        )
+      )
+    )
+  );
+
+CREATE POLICY "tile_delete_policy" ON tile
+  FOR DELETE
+  USING (
+    EXISTS (
+      SELECT 1 FROM item i
+      JOIN node n ON n.id = i.node_id
+      WHERE i.tile_id = tile.id
+      AND (
+        n.creator_id = auth.uid() OR
+        EXISTS (
+          SELECT 1 FROM node_access na
+          WHERE na.node_id = n.id
+          AND na.user_id = auth.uid()
+          AND na.permission = 'admin'::PermissionType
+        )
+      )
     )
   );

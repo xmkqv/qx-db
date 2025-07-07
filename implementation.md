@@ -31,16 +31,16 @@ I am the implementer responsible for creating the database migrations based on t
 - **Decision**: Using Supabase auth schema
 - **Status**: Complete - all references use auth.uid() and auth.users
 
-### 5. Node Permission View ✅
+### 5. Direct Permission Checks ✅
 - **Gap**: Not defined in architecture but critical for permissions
-- **Decision**: Created node_permission view combining creator and explicit grants
-- **Status**: Complete - centralizes permission logic
-- **Update**: Renamed from accessible_nodes to node_permission for clarity
+- **Decision**: RLS policies check permissions directly (creator OR node_access)
+- **Status**: Complete - no view abstraction, better performance
+- **Update**: Removed node_permission view in favor of direct checks
 
 ### 6. Helper Functions ✅
 - **Gap**: Architecture mentions but doesn't define fn_item_add_desc/next
 - **Decision**: Implemented all helper functions with proper ascn_id handling
-- **Status**: Complete - includes fn_head_item_compose, get_branch, item_in_flux
+- **Status**: Complete - includes fn_item_compose, get_branch, item_in_flux
 
 ### 7. Cycle Detection ✅
 - **Gap**: Mentioned but not implemented
@@ -148,7 +148,7 @@ Properly colocated with one migration per table/concept:
 - Automatic peer splicing and head repointing
 
 ### 3. Access Control Implementation
-- `node_permission` view combines explicit grants and creator access
+- RLS policies check permissions directly (creator OR node_access)
 - `fn_node_check_access_flux()` handles flux-aware permissions
 - Least permissive wins at flux boundaries
 - Link permissions derived from src node permissions
@@ -157,7 +157,7 @@ Properly colocated with one migration per table/concept:
 - Each data table follows template structure
 - Node type validation ensures type matches data table
 - Automatic node.updated_at updates via triggers
-- RLS policies delegate to node_permission view
+- RLS policies check permissions directly
 
 ### 5. User Workspace Implementation
 - `data_user.head_item_id` provides entry point
@@ -168,14 +168,14 @@ Properly colocated with one migration per table/concept:
 - **Item functions** (in item.sql):
   - `fn_item_add_desc()`: Helper - Add descendant with proper ascn_id
   - `fn_item_add_next()`: Helper - Add peer with same ascn_id
-  - `fn_head_item_compose()`: Helper - Create flux by setting desc_id
+  - `fn_item_compose()`: Helper - Create flux by setting desc_id
   - `get_branch()`: Query - Get all descendants with flux detection
   - `item_in_flux()`: Query - Check if item is in flux condition
   - `fn_item_check_flux_constraint()`: Validation - Ensure flux items are heads
   - **Triggers**:
     - `trigger_item_delete_handle_deletion` (BEFORE DELETE)
-    - `trigger_item_insert_update_check_ascn_cycle` (BEFORE INSERT/UPDATE)
-    - `trigger_item_insert_update_check_flux_constraint` (AFTER INSERT/UPDATE)
+    - `trigger_item_insert_update_check_cycle` (BEFORE INSERT/UPDATE)
+    - `trigger_item_insert_update_check_flux` (AFTER INSERT/UPDATE)
 - **Node triggers** (in node.sql):
   - `trigger_node_update_set_updated_at` (BEFORE UPDATE)
 - **Data table functions** (each in their own migration):
@@ -209,7 +209,7 @@ Properly colocated with one migration per table/concept:
 - ✅ Comprehensive auth.md plan created
 
 ### Pending
-- ⏳ RLS policies need review after auth plan
+- ⏳ RLS policies need review after auth implementation (check flux-aware permissions)
 - ⏳ Testing framework (minimal due to invariant-based design)
 - ⏳ Migration rollback scripts
 - ⏳ Example usage documentation
@@ -223,7 +223,7 @@ Properly colocated with one migration per table/concept:
 
 ### Key Design Decisions Made
 1. **Trigger vs Application Logic**: Critical constraints in triggers for invariance
-2. **View-based Access Control**: node_permission view centralizes permission logic
+2. **Direct Permission Checks**: RLS policies check creator/node_access directly (no view)
 3. **Automatic Workspace Creation**: Ensures every user has valid entry point
 4. **Flux Validation**: Constraint trigger prevents invalid flux states
 5. **Simple RLS Start**: Basic policies that can be enhanced based on usage

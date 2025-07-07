@@ -1,16 +1,12 @@
 -- Seed data for qx-db
 -- This file can be used to populate the database with initial test data
 
--- Example: Create a test user with some content
--- Note: Nodes must be created first, then data can be linked to them
--- 
--- -- Create nodes
+-- Example seed data:
 -- INSERT INTO node (type, creator_id) VALUES 
 --   ('user', auth.uid()),
 --   ('text', auth.uid()),
 --   ('file', auth.uid());
 --
--- -- Create data linked to nodes (assuming node IDs 1, 2, 3)
 -- INSERT INTO data_user (node_id, user_id, username) VALUES 
 --   (1, auth.uid(), 'test_user');
 -- INSERT INTO data_text (node_id, content) VALUES 

@@ -1,7 +1,7 @@
 -- Migration: Core infrastructure and utilities
 
 -- =============================================================================
--- SHARED UTILITY FUNCTIONS
+-- Shared utility functions
 -- =============================================================================
 
 -- Standard updated_at trigger function
@@ -14,7 +14,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =============================================================================
--- DOMAIN TYPES
+-- Enums
+-- =============================================================================
+
+-- Note: NodeType moved to node_init.sql
+-- Note: FileType moved to data_file_init.sql
+
+-- =============================================================================
+-- Domain types
 -- =============================================================================
 
 -- Domain types for better type safety and self-documenting code
@@ -28,7 +35,7 @@ CREATE DOMAIN dimension AS INTEGER
   CHECK (VALUE > 0);
 
 -- =============================================================================
--- UTILITY FUNCTIONS FOR ADVANCED FEATURES
+-- Utility functions for advanced features
 -- =============================================================================
 
 -- Function to check if array contains any of the given values
@@ -49,24 +56,7 @@ RETURNS text AS $$
 $$ LANGUAGE sql IMMUTABLE;
 
 -- =============================================================================
--- JSON AGGREGATION UTILITIES
+-- JSON aggregation utilities
 -- =============================================================================
 
--- Function to safely aggregate node data with type information
-CREATE OR REPLACE FUNCTION fn_node_data_json(p_node_id INTEGER)
-RETURNS JSONB AS $$
-  SELECT jsonb_build_object(
-    'node_id', n.id,
-    'type', n.type,
-    'created_at', n.created_at,
-    'updated_at', n.updated_at,
-    'data', CASE n.type
-      WHEN 'text' THEN (SELECT row_to_json(t.*) FROM data_text t WHERE t.node_id = n.id)
-      WHEN 'file' THEN (SELECT row_to_json(f.*) FROM data_file f WHERE f.node_id = n.id)
-      WHEN 'user' THEN (SELECT row_to_json(u.*) FROM data_user u WHERE u.node_id = n.id)
-      ELSE NULL
-    END
-  )
-  FROM node n
-  WHERE n.id = p_node_id;
-$$ LANGUAGE sql STABLE;
+-- Note: fn_node_data_json function moved to a later migration after all tables are created

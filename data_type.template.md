@@ -39,7 +39,7 @@ CREATE TABLE data_${TYPE} (
 -- INDEXES
 -- =============================================================================
 
--- Standard indexes
+-- INDEXES
 CREATE INDEX index_data_${TYPE}__node_id ON data_${TYPE}(node_id);
 
 -- Type-specific indexes
@@ -84,14 +84,18 @@ CREATE TRIGGER trigger_data_${TYPE}_insert_update_update_node
 -- Enable RLS on data table
 ALTER TABLE data_${TYPE} ENABLE ROW LEVEL SECURITY;
 
--- Standard policy: delegate to node_permission
+-- Standard policy: check node permissions directly
 CREATE POLICY "Data follows node access" ON data_${TYPE}
   FOR ALL
   USING (
     EXISTS (
-      SELECT 1 FROM node_permission
-      WHERE node_id = data_${TYPE}.node_id 
-      AND user_id = auth.uid()
+      SELECT 1 FROM node n
+      WHERE n.id = data_${TYPE}.node_id 
+      AND n.creator_id = auth.uid()
+    ) OR EXISTS (
+      SELECT 1 FROM node_access na
+      WHERE na.node_id = data_${TYPE}.node_id 
+      AND na.user_id = auth.uid()
     )
   );
 
@@ -101,9 +105,13 @@ CREATE POLICY "Data follows node access" ON data_${TYPE}
 --   USING (
 --     user_id = auth.uid() OR
 --     EXISTS (
---       SELECT 1 FROM node_permission
---       WHERE node_id = data_${TYPE}.node_id 
---       AND user_id = auth.uid()
+--       SELECT 1 FROM node n
+--       WHERE n.id = data_${TYPE}.node_id 
+--       AND n.creator_id = auth.uid()
+--     ) OR EXISTS (
+--       SELECT 1 FROM node_access na
+--       WHERE na.node_id = data_${TYPE}.node_id 
+--       AND na.user_id = auth.uid()
 --     )
 --   );
 ```
@@ -152,10 +160,10 @@ CREATE TABLE data_text (
   content TEXT NOT NULL
 );
 
--- Standard indexes
+-- INDEXES
 CREATE INDEX index_data_text__node_id ON data_text(node_id);
 
--- Full-text search index
+-- Type-specific indexes
 CREATE INDEX index_data_text__content_fts ON data_text USING gin(to_tsvector('english', content));
 
 -- Trigger to update node.updated_at when data changes
@@ -180,9 +188,13 @@ CREATE POLICY "Data follows node access" ON data_text
   FOR ALL
   USING (
     EXISTS (
-      SELECT 1 FROM node_permission
-      WHERE node_id = data_text.node_id 
-      AND user_id = auth.uid()
+      SELECT 1 FROM node n
+      WHERE n.id = data_text.node_id 
+      AND n.creator_id = auth.uid()
+    ) OR EXISTS (
+      SELECT 1 FROM node_access na
+      WHERE na.node_id = data_text.node_id 
+      AND na.user_id = auth.uid()
     )
   );
 ```
@@ -190,8 +202,8 @@ CREATE POLICY "Data follows node access" ON data_text
 ## Migration Dependencies
 
 Data migrations depend on:
-1. `20250104000000_core_infrastructure.sql` - For utility functions
-2. `20250104000001_node.sql` - For node table and NodeType enum
-3. `20250104000005_node_permission.sql` - For node_permission view
+1. `20250104000000_core_infrastructure.sql` - For NodeType enum and utility functions
+2. `20250104000001_node.sql` - For node table
+3. `20250104000005_node_permission.sql` - For node_access table
 
-Data migrations are independent of each other and can be created in any order.
+Data migrations must run after these dependencies but are independent of each other.

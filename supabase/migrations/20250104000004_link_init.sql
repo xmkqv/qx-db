@@ -1,7 +1,7 @@
 -- Migration: Link table
 
 -- =============================================================================
--- TABLE DEFINITION
+-- Table definition
 -- =============================================================================
 
 -- Link table with integer references
@@ -13,15 +13,13 @@ CREATE TABLE link (
 );
 
 -- =============================================================================
--- INDEXES
+-- Indexes
 -- =============================================================================
-
--- Indexes for link table
 CREATE INDEX index_link__src_id ON link(src_id);
 CREATE INDEX index_link__dst_id ON link(dst_id);
 
 -- =============================================================================
--- ROW LEVEL SECURITY
+-- Row level security
 -- =============================================================================
 
 -- Enable RLS on link table
@@ -31,16 +29,22 @@ ALTER TABLE link ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "link_select_policy" ON link
   FOR SELECT
   USING (
-    src_id IN (SELECT node_id FROM node_permission WHERE user_id = auth.uid())
+    src_id IN (
+      SELECT id FROM node WHERE creator_id = auth.uid()
+      UNION
+      SELECT node_id FROM node_access WHERE user_id = auth.uid()
+    )
   );
 
 CREATE POLICY "link_insert_policy" ON link
   FOR INSERT
   WITH CHECK (
     src_id IN (
-      SELECT node_id FROM node_permission 
+      SELECT id FROM node WHERE creator_id = auth.uid()
+      UNION
+      SELECT node_id FROM node_access 
       WHERE user_id = auth.uid() 
-      AND permission IN ('edit', 'admin')
+      AND permission >= 'edit'::PermissionType
     )
   );
 
@@ -48,9 +52,11 @@ CREATE POLICY "link_update_policy" ON link
   FOR UPDATE
   USING (
     src_id IN (
-      SELECT node_id FROM node_permission 
+      SELECT id FROM node WHERE creator_id = auth.uid()
+      UNION
+      SELECT node_id FROM node_access 
       WHERE user_id = auth.uid() 
-      AND permission IN ('edit', 'admin')
+      AND permission >= 'edit'::PermissionType
     )
   );
 
@@ -58,8 +64,10 @@ CREATE POLICY "link_delete_policy" ON link
   FOR DELETE
   USING (
     src_id IN (
-      SELECT node_id FROM node_permission 
+      SELECT id FROM node WHERE creator_id = auth.uid()
+      UNION
+      SELECT node_id FROM node_access 
       WHERE user_id = auth.uid() 
-      AND permission = 'admin'
+      AND permission = 'admin'::PermissionType
     )
   );
