@@ -1,4 +1,4 @@
-# Custom Node Visualization System for Quarto + mkultra Integration
+# Custom Node Visualization System for Quarto + qx Integration
 
 **Status**: Planning  
 **Priority**: High  
@@ -6,14 +6,14 @@
 
 ## Overview
 
-Create a Python-based node visualization system for Quarto documents that integrates with the mkultra utilities package, replacing the d2 dependency with a more flexible and controllable solution.
+Create a Python-based node visualization system for Quarto documents that integrates with the qx utilities package, replacing the d2 dependency with a more flexible and controllable solution.
 
 ## Resources
 
 - [Quarto Python Documentation](https://quarto.org/docs/computations/python.html)
 - [Quarto Virtual Environments](https://quarto.org/docs/projects/virtual-environments.html)
 - [IPython Display Documentation](https://ipython.readthedocs.io/en/stable/api/generated/IPython.display.html)
-- [mkultra package repository](https://github.com/your-org/mkultra)
+- [qx package repository](https://github.com/your-org/qx)
 
 ## Requirements
 
@@ -22,7 +22,7 @@ Create a Python-based node visualization system for Quarto documents that integr
 - **Module Import**: Quarto executes Python code in Jupyter kernel environment
 - **Package Access**: Can import any installed packages in active environment
 - **Environment Management**: Use `quarto check jupyter` to verify setup
-- **Development Flow**: Install mkultra package in development mode for live updates
+- **Development Flow**: Install qx package in development mode for live updates
 
 ### Core Functionality
 
@@ -35,8 +35,8 @@ Create a Python-based node visualization system for Quarto documents that integr
 ### Integration Architecture
 
 ```python
-# In mkultra package
-from mkultra.apis.quarto import NodeDiagram, TreeLayout
+# In qx package
+from qx.apis.quarto import NodeDiagram, TreeLayout
 from IPython.display import HTML
 
 # Usage in Quarto docs
@@ -48,7 +48,7 @@ diagram.render()  # Returns HTML object
 
 ### Phase 1: Core Infrastructure
 
-1. **mkultra.quarto Module**: Create visualization module in mkultra package
+1. **qx.quarto Module**: Create visualization module in qx package
 2. **SVG Generator**: Basic shapes (rectangles, circles, lines, text)
 3. **Layout Engine**: Simple tree and hierarchy algorithms
 4. **CSS Integration**: Embedded styling system
@@ -73,7 +73,7 @@ diagram.render()  # Returns HTML object
 ### Package Structure
 
 ```
-mkultra/
+qx/
 ├── apis/
 │   └── quarto/
 │       ├── __init__.py
@@ -85,13 +85,13 @@ mkultra/
 
 ### Environment Setup
 
-- Install mkultra in development mode: `pip install -e .`
+- Install qx in development mode: `pip install -e .`
 - Verify Quarto can import: `quarto check jupyter`
-- Test imports in Quarto: `from mkultra.apis.quarto import NodeDiagram`
+- Test imports in Quarto: `from qx.apis.quarto import NodeDiagram`
 
 ### Development Workflow
 
-1. **Local Development**: Edit mkultra package code
+1. **Local Development**: Edit qx package code
 2. **Live Testing**: Changes reflected immediately in Quarto (dev install)
 3. **Documentation**: Examples and usage in Quarto docs
 4. **Global Availability**: Package available across all Quarto projects
@@ -109,7 +109,7 @@ mkultra/
 ## Implementation Steps
 
 ### Step 1: Package Setup
-- [ ] Create `mkultra/apis/quarto/` module structure
+- [ ] Create `qx/apis/quarto/` module structure
 - [ ] Set up basic imports and exports
 - [ ] Create development environment setup script
 
@@ -161,7 +161,7 @@ mkultra/
 
 ## Discussion
 
-This approach provides a robust, maintainable solution that leverages Python's strengths while giving us complete control over the visualization system. The integration with mkultra ensures the functionality is available across all projects and can evolve with our needs.
+This approach provides a robust, maintainable solution that leverages Python's strengths while giving us complete control over the visualization system. The integration with qx ensures the functionality is available across all projects and can evolve with our needs.
 
 ## Exclusions
 
