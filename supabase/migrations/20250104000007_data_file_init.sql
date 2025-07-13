@@ -1,17 +1,11 @@
 -- Migration: Data table - file
 
 -- =============================================================================
--- ENUMS
+-- ENUMS & ENUM EXTENSION
 -- =============================================================================
 
--- File types supported by the system
 CREATE TYPE FileType AS ENUM ('png');
 
--- =============================================================================
--- ENUM EXTENSION
--- =============================================================================
-
--- Add 'file' to NodeType enum
 ALTER TYPE NodeType ADD VALUE 'file';
 
 -- =============================================================================
@@ -59,20 +53,20 @@ CREATE TRIGGER trigger_data_file_insert_update_update_node
 -- Enable RLS on data table
 ALTER TABLE data_file ENABLE ROW LEVEL SECURITY;
 
--- Standard policy: check permissions directly
-CREATE POLICY "Data follows node access" ON data_file
-  FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM node n
-      WHERE n.id = data_file.node_id 
-      AND (
-        n.creator_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM node_access na
-          WHERE na.node_id = n.id
-          AND na.user_id = auth.uid()
-        )
-      )
-    )
-  );
+-- Data policies: access follows node permissions
+CREATE POLICY "Users can view file data they have access to" ON data_file
+  FOR SELECT
+  USING (user_has_node_access(node_id, 4));  -- VIEW permission
+
+CREATE POLICY "Users can insert file data they can edit" ON data_file
+  FOR INSERT
+  WITH CHECK (user_has_node_access(node_id, 2));  -- EDIT permission
+
+CREATE POLICY "Users can update file data they can edit" ON data_file
+  FOR UPDATE
+  USING (user_has_node_access(node_id, 2))  -- EDIT permission
+  WITH CHECK (user_has_node_access(node_id, 2));
+
+CREATE POLICY "Users can delete file data they admin" ON data_file
+  FOR DELETE
+  USING (user_has_node_access(node_id, 1));  -- ADMIN permission

@@ -1,0 +1,10 @@
+# Quarto generated files
+tree.html
+tree_files/
+*.html
+*_files/
+
+# Quarto cache
+.quarto/
+_freeze/
+/.quarto/

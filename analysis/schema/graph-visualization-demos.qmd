@@ -1,0 +1,537 @@
+---
+title: "Graph Visualization Showcase"
+subtitle: "Best-in-class graph visualization techniques for Observable"
+author: "QX Database Team"
+date: today
+format:
+  html:
+    code-fold: true
+    code-summary: "Show code"
+    toc: true
+    toc-depth: 3
+---
+
+# Introduction
+
+This document showcases the best graph visualization capabilities available in Observable notebooks, demonstrating various approaches for different use cases.
+
+# Graphviz DOT Visualizations
+
+Graphviz provides professional-quality automatic graph layouts with minimal code.
+
+## Simple Directed Graph
+
+```{ojs}
+dot`digraph {
+  rankdir=LR;
+  node [shape=circle, style=filled, fillcolor=lightblue];
+  A -> B -> C -> D;
+  B -> D [style=dashed, label="shortcut"];
+}`
+```
+
+## Hierarchical Tree with Styling
+
+```{ojs}
+dot`digraph DataTypes {
+  rankdir=BT;
+  node [shape=box, style="filled,rounded", fillcolor=lightblue, fontname="Arial"];
+  edge [fontname="Arial", fontsize=10];
+  
+  // Define nodes
+  Text [fillcolor=lightcyan];
+  File [fillcolor=lightcyan];
+  Number [fillcolor=lightcyan];
+  Data [fillcolor=lightgray, shape=ellipse];
+  
+  // Define relationships
+  Text -> Data [label="is a"];
+  File -> Data [label="is a"];
+  Number -> Data [label="is a"];
+  Data -> Data [label="is a", style=dashed, constraint=false];
+}`
+```
+
+## Clustered Subgraphs
+
+```{ojs}
+dot`digraph ComposableTrees {
+  compound=true;
+  rankdir=LR;
+  node [shape=circle, style=filled];
+  
+  subgraph cluster_0 {
+    style=filled;
+    color=lightgrey;
+    fillcolor=lightyellow;
+    label = "Tree 1";
+    node [fillcolor=lightcoral];
+    Root1 [shape=diamond];
+    node [fillcolor=lightblue];
+    Node1; Node2;
+    Root1 -> Node1 -> Node2;
+  }
+  
+  subgraph cluster_1 {
+    style=filled;
+    color=lightgrey;
+    fillcolor=lightcyan;
+    label = "Tree 2";
+    node [fillcolor=lightcoral];
+    Root2 [shape=diamond];
+    node [fillcolor=lightblue];
+    NodeA;
+    Root2 -> NodeA;
+  }
+  
+  // Cross-tree reference
+  NodeA -> Root1 [color=red, style=dashed, label="references", constraint=false];
+}`
+```
+
+## Database Schema Diagram
+
+```{ojs}
+dot`digraph DatabaseSchema {
+  rankdir=TB;
+  node [shape=record, style=filled, fillcolor=lightsteelblue];
+  
+  // Table definitions
+  node_table [label="{node|+ id: UUID\\l+ type: VARCHAR\\l+ data: JSONB\\l}"];
+  tile_table [label="{tile|+ id: UUID\\l+ node_id: UUID\\l+ position: INT\\l}"];
+  link_table [label="{link|+ id: UUID\\l+ tile_id: UUID\\l+ target_id: UUID\\l}"];
+  item_table [label="{item|+ id: UUID\\l+ node_id: UUID\\l+ content: TEXT\\l}"];
+  
+  // Foreign key relationships
+  tile_table -> node_table [label="FK: node_id", color=blue];
+  link_table -> tile_table [label="FK: tile_id", color=blue];
+  item_table -> node_table [label="FK: node_id", color=blue];
+}`
+```
+
+# D3 Hierarchical Layouts
+
+D3 provides interactive tree visualizations with smooth animations.
+
+## Collapsible Tree
+
+```{ojs}
+{
+  const data = {
+    name: "Database Schema",
+    children: [
+      {
+        name: "Tables",
+        children: [
+          {name: "node", value: 100},
+          {name: "tile", value: 80},
+          {name: "link", value: 60},
+          {name: "item", value: 40}
+        ]
+      },
+      {
+        name: "Functions",
+        children: [
+          {name: "fn_node_create", value: 50},
+          {name: "fn_tile_update", value: 30}
+        ]
+      },
+      {
+        name: "Views",
+        children: [
+          {name: "v_node_tree", value: 70},
+          {name: "v_user_permissions", value: 90}
+        ]
+      }
+    ]
+  };
+
+  const width = 600;
+  const height = 400;
+  const margin = {top: 20, right: 120, bottom: 20, left: 120};
+
+  const tree = d3.tree()
+    .size([height - margin.top - margin.bottom, width - margin.left - margin.right]);
+
+  const root = d3.hierarchy(data);
+  
+  tree(root);
+
+  const svg = d3.create("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // Links
+  g.selectAll(".link")
+    .data(root.links())
+    .join("path")
+    .attr("class", "link")
+    .attr("fill", "none")
+    .attr("stroke", "#ccc")
+    .attr("stroke-width", 2)
+    .attr("d", d3.linkHorizontal()
+      .x(d => d.y)
+      .y(d => d.x));
+
+  // Nodes
+  const node = g.selectAll(".node")
+    .data(root.descendants())
+    .join("g")
+    .attr("class", "node")
+    .attr("transform", d => `translate(${d.y},${d.x})`);
+
+  node.append("circle")
+    .attr("r", 6)
+    .attr("fill", d => d.children ? "#555" : "#999")
+    .attr("stroke", "white")
+    .attr("stroke-width", 2);
+
+  node.append("text")
+    .attr("dy", ".31em")
+    .attr("x", d => d.children ? -10 : 10)
+    .attr("text-anchor", d => d.children ? "end" : "start")
+    .text(d => d.data.name)
+    .style("font", "12px sans-serif");
+
+  return svg.node();
+}
+```
+
+## Radial Tree
+
+```{ojs}
+{
+  const data = {
+    name: "root",
+    children: [
+      {name: "A", children: [{name: "A1"}, {name: "A2"}, {name: "A3"}]},
+      {name: "B", children: [{name: "B1"}, {name: "B2"}]},
+      {name: "C", children: [{name: "C1"}, {name: "C2"}, {name: "C3"}, {name: "C4"}]},
+      {name: "D", children: [{name: "D1"}]}
+    ]
+  };
+
+  const width = 500;
+  const height = 500;
+  const radius = Math.min(width, height) / 2 - 30;
+
+  const tree = d3.cluster()
+    .size([2 * Math.PI, radius]);
+
+  const root = d3.hierarchy(data);
+  tree(root);
+
+  const svg = d3.create("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  const g = svg.append("g")
+    .attr("transform", `translate(${width/2},${height/2})`);
+
+  // Links
+  g.selectAll(".link")
+    .data(root.links())
+    .join("path")
+    .attr("class", "link")
+    .attr("fill", "none")
+    .attr("stroke", "#555")
+    .attr("stroke-opacity", 0.4)
+    .attr("stroke-width", 1.5)
+    .attr("d", d3.linkRadial()
+      .angle(d => d.x)
+      .radius(d => d.y));
+
+  // Nodes
+  const node = g.selectAll(".node")
+    .data(root.descendants())
+    .join("g")
+    .attr("class", "node")
+    .attr("transform", d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`);
+
+  node.append("circle")
+    .attr("r", 4)
+    .attr("fill", d => d.children ? "#555" : "#999");
+
+  node.append("text")
+    .attr("dy", "0.31em")
+    .attr("x", d => d.x < Math.PI === !d.children ? 6 : -6)
+    .attr("text-anchor", d => d.x < Math.PI === !d.children ? "start" : "end")
+    .attr("transform", d => d.x >= Math.PI ? "rotate(180)" : null)
+    .text(d => d.data.name)
+    .style("font", "11px sans-serif");
+
+  return svg.node();
+}
+```
+
+# D3 Force-Directed Graphs
+
+Force-directed layouts are ideal for network visualizations with complex relationships.
+
+## Interactive Network
+
+```{ojs}
+{
+  const nodes = [
+    {id: "Database", group: 1},
+    {id: "Tables", group: 2},
+    {id: "Functions", group: 2},
+    {id: "Views", group: 2},
+    {id: "node", group: 3},
+    {id: "tile", group: 3},
+    {id: "link", group: 3},
+    {id: "item", group: 3}
+  ];
+
+  const links = [
+    {source: "Database", target: "Tables", value: 3},
+    {source: "Database", target: "Functions", value: 2},
+    {source: "Database", target: "Views", value: 1},
+    {source: "Tables", target: "node", value: 2},
+    {source: "Tables", target: "tile", value: 2},
+    {source: "Tables", target: "link", value: 2},
+    {source: "Tables", target: "item", value: 2},
+    {source: "tile", target: "node", value: 1},
+    {source: "link", target: "tile", value: 1},
+    {source: "item", target: "node", value: 1}
+  ];
+
+  const width = 600;
+  const height = 400;
+
+  const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+  const simulation = d3.forceSimulation(nodes)
+    .force("link", d3.forceLink(links).id(d => d.id).distance(50))
+    .force("charge", d3.forceManyBody().strength(-200))
+    .force("center", d3.forceCenter(width / 2, height / 2));
+
+  const svg = d3.create("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  // Add arrow marker definition
+  svg.append("defs").append("marker")
+    .attr("id", "arrowhead")
+    .attr("viewBox", "-0 -5 10 10")
+    .attr("refX", 20)
+    .attr("refY", 0)
+    .attr("orient", "auto")
+    .attr("markerWidth", 10)
+    .attr("markerHeight", 10)
+    .append("path")
+    .attr("d", "M 0,-5 L 10,0 L 0,5")
+    .attr("fill", "#999");
+
+  const link = svg.append("g")
+    .attr("stroke", "#999")
+    .attr("stroke-opacity", 0.6)
+    .selectAll("line")
+    .data(links)
+    .join("line")
+    .attr("stroke-width", d => Math.sqrt(d.value))
+    .attr("marker-end", "url(#arrowhead)");
+
+  const node = svg.append("g")
+    .attr("stroke", "#fff")
+    .attr("stroke-width", 1.5)
+    .selectAll("circle")
+    .data(nodes)
+    .join("circle")
+    .attr("r", 10)
+    .attr("fill", d => color(d.group))
+    .call(drag(simulation));
+
+  const label = svg.append("g")
+    .selectAll("text")
+    .data(nodes)
+    .join("text")
+    .text(d => d.id)
+    .style("font", "12px sans-serif")
+    .attr("text-anchor", "middle")
+    .attr("dy", -15);
+
+  node.append("title")
+    .text(d => d.id);
+
+  simulation.on("tick", () => {
+    link
+      .attr("x1", d => d.source.x)
+      .attr("y1", d => d.source.y)
+      .attr("x2", d => d.target.x)
+      .attr("y2", d => d.target.y);
+
+    node
+      .attr("cx", d => d.x)
+      .attr("cy", d => d.y);
+
+    label
+      .attr("x", d => d.x)
+      .attr("y", d => d.y);
+  });
+
+  function drag(simulation) {
+    function dragstarted(event) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      event.subject.fx = event.subject.x;
+      event.subject.fy = event.subject.y;
+    }
+
+    function dragged(event) {
+      event.subject.fx = event.x;
+      event.subject.fy = event.y;
+    }
+
+    function dragended(event) {
+      if (!event.active) simulation.alphaTarget(0);
+      event.subject.fx = null;
+      event.subject.fy = null;
+    }
+
+    return d3.drag()
+      .on("start", dragstarted)
+      .on("drag", dragged)
+      .on("end", dragended);
+  }
+
+  return svg.node();
+}
+```
+
+# Advanced Graphviz Examples
+
+## State Machine Diagram
+
+```{ojs}
+dot`digraph StateMachine {
+  rankdir=LR;
+  size="8,5"
+  
+  node [shape=doublecircle]; Start End;
+  node [shape=circle];
+  
+  Start -> Draft [label="create"];
+  Draft -> Review [label="submit"];
+  Review -> Approved [label="approve"];
+  Review -> Draft [label="reject"];
+  Approved -> Published [label="publish"];
+  Published -> End [label="archive"];
+  
+  Draft [fillcolor=yellow, style=filled];
+  Review [fillcolor=orange, style=filled];
+  Approved [fillcolor=lightgreen, style=filled];
+  Published [fillcolor=green, style=filled];
+}`
+```
+
+## Complex Network with Ranks
+
+```{ojs}
+dot`digraph NetworkArchitecture {
+  rankdir=TB;
+  
+  // Define node styles
+  node [shape=box, style="rounded,filled"];
+  
+  // Layer 1: User Interface
+  {
+    rank=same;
+    node [fillcolor=lightblue];
+    UI1 [label="Web App"];
+    UI2 [label="Mobile App"];
+    UI3 [label="API Client"];
+  }
+  
+  // Layer 2: API Gateway
+  {
+    rank=same;
+    node [fillcolor=lightgreen];
+    GW [label="API Gateway", shape=hexagon];
+  }
+  
+  // Layer 3: Services
+  {
+    rank=same;
+    node [fillcolor=lightyellow];
+    S1 [label="Auth Service"];
+    S2 [label="Data Service"];
+    S3 [label="File Service"];
+  }
+  
+  // Layer 4: Database
+  {
+    rank=same;
+    node [fillcolor=lightcoral, shape=cylinder];
+    DB1 [label="PostgreSQL"];
+    DB2 [label="Redis Cache"];
+  }
+  
+  // Connections
+  UI1 -> GW;
+  UI2 -> GW;
+  UI3 -> GW;
+  
+  GW -> S1;
+  GW -> S2;
+  GW -> S3;
+  
+  S1 -> DB1;
+  S1 -> DB2;
+  S2 -> DB1;
+  S3 -> DB1;
+}`
+```
+
+# Comparison and Best Practices
+
+## When to Use Each Approach
+
+::: {.callout-tip}
+### Graphviz DOT
+- **Best for**: Static diagrams, hierarchical structures, professional documentation
+- **Pros**: Automatic layout, minimal code, publication quality
+- **Cons**: Limited interactivity, less customization
+:::
+
+::: {.callout-tip}
+### D3 Hierarchical
+- **Best for**: Tree structures, organizational charts, file systems
+- **Pros**: Interactive, collapsible nodes, smooth animations
+- **Cons**: More code required, manual layout calculations
+:::
+
+::: {.callout-tip}
+### D3 Force-Directed
+- **Best for**: Network analysis, social graphs, complex relationships
+- **Pros**: Dynamic simulation, draggable nodes, reveals clusters
+- **Cons**: Can be chaotic with large datasets, non-deterministic layout
+:::
+
+## Performance Considerations
+
+For large graphs (>1000 nodes), consider:
+- Using WebGL-based libraries (Sigma.js)
+- Implementing node clustering/aggregation
+- Virtual scrolling for node lists
+- Progressive rendering strategies
+
+## Styling Guidelines
+
+1. **Consistent Color Schemes**: Use categorical colors for node types
+2. **Clear Labels**: Keep text concise and readable
+3. **Meaningful Shapes**: Use shape to convey node type or status
+4. **Edge Styling**: Use thickness/style to show relationship strength
+5. **Layout Direction**: Choose based on hierarchy (TB for org charts, LR for flows)
+
+# Conclusion
+
+This showcase demonstrates that Observable notebooks support sophisticated graph visualizations through:
+- Built-in Graphviz support via `dot` template literals
+- Full D3.js integration for interactive visualizations
+- Flexible styling and layout options
+- Smooth animations and user interactions
+
+Choose the right tool based on your specific needs for static vs. interactive, simple vs. complex, and hierarchical vs. network structures.

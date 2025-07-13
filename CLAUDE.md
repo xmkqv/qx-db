@@ -22,8 +22,6 @@
 qx-db/
 ├── CLAUDE.md              # Project conventions and guidelines
 ├── architecture.md        # Primary source of truth for design
-├── implementation.md      # Implementation notes and decisions
-├── data_type.template.md  # Template for data table migrations
 └── supabase/
     ├── config.toml
     ├── seed.sql           # (empty) Database seed data
@@ -37,13 +35,5 @@ qx-db/
         ├── 20250104000006_data_text_init.sql          # Text data
         ├── 20250104000007_data_file_init.sql          # File data
         ├── 20250104000008_data_user_init.sql          # User data
-        ├── 20250104000009_node_data_json_function.sql # JSON aggregation
-        └── 20250104000011_user_workspace_roots_view.sql # User workspace view
+        └── 20250104000009_node_data_json_function.sql # JSON aggregation
 ```
-
-### implementation.md: Structure
-
-- Current state
-- Desired Outcome
-- Next Steps
-- Issues and Concerns

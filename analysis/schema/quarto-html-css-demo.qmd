@@ -1,0 +1,1002 @@
+---
+title: "Quarto HTML/CSS Features Demo"
+subtitle: "Exploring all styling capabilities"
+author: "Demo Author"
+date: today
+format:
+  html:
+    toc: true
+    toc-depth: 3
+    toc-location: left
+    theme: [cosmo, custom-theme.scss]
+    css: [custom-styles.css, additional-styles.css]
+    page-layout: article
+    code-fold: true
+    code-summary: "Show code"
+    code-tools: true
+    include-in-header:
+      - text: |
+          <meta name="description" content="Quarto HTML/CSS Demo">
+          <style>
+            /* Inline header styles */
+            .header-custom {
+              background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+              color: white;
+              padding: 2rem;
+              text-align: center;
+              margin-bottom: 2rem;
+            }
+          </style>
+      - file: header-scripts.html
+    include-before-body:
+      - text: |
+          <a href="#main-content" class="skip-link">Skip to main content</a>
+          <div class="header-custom" role="banner">
+            <h1>Welcome to the Quarto HTML/CSS Demo</h1>
+            <p>This document showcases various HTML and CSS features</p>
+          </div>
+    include-after-body:
+      - text: |
+          <footer style="background: #f8f9fa; padding: 2rem; text-align: center; margin-top: 3rem;">
+            <p>© 2025 Quarto Demo. Built with ❤️ using Quarto</p>
+          </footer>
+---
+
+<details>
+<summary style="cursor: pointer; padding: 0.5rem; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; margin-bottom: 0.5rem; display: inline-block;">Show all CSS styles</summary>
+
+```{css}
+/* ===== ORGANIZED CSS STYLES ===== */
+
+/* ----- Basic Styling Classes ----- */
+.highlight-box {
+  background-color: #fff3cd;
+  border: 1px solid #ffeaa7;
+  border-radius: 5px;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+.custom-quote {
+  border-left: 4px solid #007bff;
+  padding-left: 1rem;
+  font-style: italic;
+  color: #495057;
+}
+
+.gradient-text {
+  background: linear-gradient(45deg, #f093fb 0%, #f5576c 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+/* ----- Animations ----- */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.pulse-animation {
+  animation: pulse 2s infinite;
+  display: inline-block;
+}
+
+/* Respect user preferences for reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .pulse-animation {
+    animation: none;
+  }
+  
+  .hover-card {
+    transition: none !important;
+  }
+}
+
+/* ----- Interactive Components ----- */
+.hover-card {
+  transition: all 0.3s ease;
+  padding: 1rem;
+  background: #f8f9fa;
+  border-radius: 8px;
+  margin: 1rem 0;
+}
+
+.hover-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+  background: #e9ecef;
+}
+
+/* ----- Tables ----- */
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1rem 0;
+}
+
+.custom-table th {
+  background: #007bff;
+  color: white;
+  padding: 0.75rem;
+  text-align: left;
+}
+
+.custom-table td {
+  padding: 0.75rem;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.custom-table tr:hover {
+  background: #f8f9fa;
+}
+
+/* ----- Responsive Typography ----- */
+@media (max-width: 768px) {
+  .responsive-text {
+    font-size: 1rem;
+    color: #dc3545;
+  }
+}
+
+@media (min-width: 769px) {
+  .responsive-text {
+    font-size: 1.5rem;
+    color: #28a745;
+  }
+}
+
+/* ----- CSS Custom Properties ----- */
+:root {
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --border-radius: 8px;
+  --spacing: 1rem;
+}
+
+.css-variable-demo {
+  background: var(--primary-color);
+  color: white;
+  padding: var(--spacing);
+  border-radius: var(--border-radius);
+  margin: var(--spacing) 0;
+}
+
+/* ----- Advanced Selectors ----- */
+.fancy-list {
+  list-style: none;
+}
+
+.fancy-list li::before {
+  content: "▸ ";
+  color: #007bff;
+  font-weight: bold;
+}
+
+.fancy-list li:nth-child(even) {
+  background: #f8f9fa;
+  padding: 0.25rem 0.5rem;
+}
+
+.fancy-blockquote {
+  position: relative;
+  padding-left: 2rem;
+  margin: 2rem 0;
+}
+
+.fancy-blockquote::before {
+  content: """;
+  font-size: 3rem;
+  color: #dee2e6;
+  position: absolute;
+  left: -20px;
+  top: -10px;
+}
+
+/* ----- Focus and Accessibility ----- */
+.interactive-button:focus,
+.hover-card:focus {
+  outline: 3px solid #007bff;
+  outline-offset: 2px;
+}
+
+/* Skip link for screen readers */
+.skip-link {
+  position: absolute;
+  top: -40px;
+  left: 0;
+  background: #007bff;
+  color: white;
+  padding: 8px;
+  text-decoration: none;
+}
+
+.skip-link:focus {
+  top: 0;
+}
+
+/* ----- CSS Grid Areas ----- */
+.grid-areas-container {
+  display: grid;
+  grid-template-areas:
+    "header header header"
+    "sidebar main aside"
+    "footer footer footer";
+  grid-template-columns: 200px 1fr 200px;
+  grid-template-rows: auto 1fr auto;
+  gap: 1rem;
+  min-height: 400px;
+  margin: 2rem 0;
+}
+
+.grid-header {
+  grid-area: header;
+  background: #667eea;
+  color: white;
+  padding: 1rem;
+  text-align: center;
+}
+
+.grid-sidebar {
+  grid-area: sidebar;
+  background: #f8f9fa;
+  padding: 1rem;
+}
+
+.grid-main {
+  grid-area: main;
+  background: #e9ecef;
+  padding: 1rem;
+}
+
+.grid-aside {
+  grid-area: aside;
+  background: #f8f9fa;
+  padding: 1rem;
+}
+
+.grid-footer {
+  grid-area: footer;
+  background: #495057;
+  color: white;
+  padding: 1rem;
+  text-align: center;
+}
+
+/* ----- Container Queries ----- */
+@container (min-width: 400px) {
+  .container-query-demo {
+    background: #d4edda;
+    padding: 2rem;
+  }
+}
+
+@container (max-width: 399px) {
+  .container-query-demo {
+    background: #f8d7da;
+    padding: 1rem;
+  }
+}
+
+.container-wrapper {
+  container-type: inline-size;
+  border: 2px solid #dee2e6;
+  padding: 1rem;
+  margin: 1rem 0;
+}
+
+/* ----- CSS Cascade Layers ----- */
+@layer base {
+  .layered-element {
+    background: #ffeaa7;
+    color: #2d3436;
+  }
+}
+
+@layer theme {
+  .layered-element {
+    background: #74b9ff;
+    padding: 1rem;
+  }
+}
+
+@layer utilities {
+  .layered-element.override {
+    background: #fd79a8 !important;
+  }
+}
+
+/* ----- CSS Counters ----- */
+.counter-list {
+  counter-reset: section;
+  list-style: none;
+  padding-left: 0;
+}
+
+.counter-list li {
+  counter-increment: section;
+  padding: 0.5rem 0;
+}
+
+.counter-list li::before {
+  content: "Section " counter(section) ": ";
+  font-weight: bold;
+  color: #007bff;
+}
+
+.nested-counters {
+  counter-reset: chapter;
+}
+
+.nested-counters h4 {
+  counter-increment: chapter;
+  counter-reset: section;
+}
+
+.nested-counters h4::before {
+  content: "Chapter " counter(chapter) ". ";
+}
+
+.nested-counters h5 {
+  counter-increment: section;
+}
+
+.nested-counters h5::before {
+  content: counter(chapter) "." counter(section) " ";
+}
+
+/* ----- Quarto-Specific Styling ----- */
+/* Dark mode integration */
+[data-quarto-theme="dark"] {
+  --primary-color: #74b9ff;
+  --secondary-color: #a0a0a0;
+  --bg-color: #2d3436;
+  --text-color: #dfe6e9;
+}
+
+[data-quarto-theme="light"] {
+  --primary-color: #007bff;
+  --secondary-color: #6c757d;
+  --bg-color: #ffffff;
+  --text-color: #2d3436;
+}
+
+.theme-aware-component {
+  background: var(--bg-color);
+  color: var(--text-color);
+  padding: 1.5rem;
+  border-radius: 8px;
+  border: 2px solid var(--primary-color);
+  margin: 1rem 0;
+  transition: all 0.3s ease;
+}
+
+/* Using prefers-color-scheme for automatic dark mode */
+@media (prefers-color-scheme: dark) {
+  .auto-dark-mode {
+    background: #2d3436;
+    color: #dfe6e9;
+    padding: 1rem;
+    border-radius: 8px;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .auto-dark-mode {
+    background: #f8f9fa;
+    color: #2d3436;
+    padding: 1rem;
+    border-radius: 8px;
+  }
+}
+
+/* Overriding Quarto styles safely */
+.quarto-title-meta {
+  margin-bottom: 2rem;
+}
+
+/* Custom styling for Quarto code blocks */
+div.sourceCode {
+  border-left: 4px solid var(--primary-color);
+  border-radius: 4px;
+}
+
+/* Customizing Quarto tables */
+.quarto-table {
+  margin: 2rem 0;
+}
+
+.quarto-table thead {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+  color: white;
+}
+
+/* Citation styling */
+.citation {
+  font-style: italic;
+  color: var(--secondary-color);
+  border-left: 3px solid var(--primary-color);
+  padding-left: 1rem;
+  margin: 1rem 0;
+}
+
+/* Custom figure captions */
+.quarto-figure figcaption {
+  text-align: center;
+  font-style: italic;
+  color: var(--secondary-color);
+  margin-top: 0.5rem;
+}
+```
+
+</details>
+
+<main id="main-content">
+
+## 1. Basic CSS Classes and Styling {#basic-styling}
+
+### Using CSS Classes on Headers {.highlight-box}
+
+This header has a custom CSS class applied to it!
+
+### Inline Styling with Divs
+
+::: {.custom-quote}
+This is a custom styled quote using a div with a CSS class. The styling includes a left border, padding, and italic text.
+:::
+
+::: {.alert .alert-success}
+This uses Bootstrap's alert classes (Quarto includes Bootstrap 5 by default).
+:::
+
+### Inline Spans for Text Styling
+
+This paragraph contains [highlighted text]{.highlight-box style="display: inline; padding: 0.2rem 0.5rem;"} and also some [gradient text]{.gradient-text} using custom CSS classes.
+
+## 2. Direct HTML Embedding
+
+<div class="card" style="width: 100%; margin: 1rem 0;" role="region" aria-label="Custom HTML Card Example">
+  <div class="card-body">
+    <h3 class="card-title">Custom HTML Card</h3>
+    <p class="card-text">This is a Bootstrap card created with direct HTML embedding.</p>
+    <button class="btn btn-primary interactive-button" aria-label="Show greeting message">Click Me!</button>
+  </div>
+</div>
+
+<div style="background: #e9ecef; padding: 1rem; border-radius: 10px;">
+  <h4 style="color: #495057;">Custom Styled Container</h4>
+  <p>This container uses inline styles directly in HTML.</p>
+  <ul style="list-style-type: none; padding-left: 0;">
+    <li>✅ Direct HTML embedding</li>
+    <li>✅ Inline styles</li>
+    <li>✅ Custom formatting</li>
+  </ul>
+</div>
+
+## 3. Bootstrap Grid System
+
+::: {.container-fluid}
+::: {.row}
+::: {.col-md-6}
+### Left Column
+This content is in the left column of a Bootstrap grid. You can use any Bootstrap 5 classes in Quarto documents.
+
+::: {.bg-light .p-3 .rounded}
+This is a nested div with Bootstrap utility classes for background, padding, and rounded corners.
+:::
+:::
+
+::: {.col-md-6}
+### Right Column
+This content is in the right column. The grid system is responsive and will stack on smaller screens.
+
+<div class="progress" style="height: 25px;" role="progressbar" aria-label="Example progress">
+  <div class="progress-bar" style="width: 75%;" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">75%</div>
+</div>
+:::
+:::
+:::
+
+## 4. CSS Animations and Transitions
+
+<div class="pulse-animation" style="text-align: center; margin: 2rem 0;" role="img" aria-label="Animated art palette emoji demonstrating CSS animations">
+  <span style="font-size: 3rem;">🎨</span>
+</div>
+
+<div class="hover-card" tabindex="0">
+  <h4>Hover Effect Card</h4>
+  <p>Hover over this card to see the transition effect!</p>
+</div>
+
+## 5. Complex Layouts
+
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 2rem 0;">
+  <div style="background: #ffeaa7; padding: 1rem; text-align: center; border-radius: 8px;">
+    <h5>Grid Item 1</h5>
+    <p>CSS Grid Layout</p>
+  </div>
+  <div style="background: #74b9ff; padding: 1rem; text-align: center; border-radius: 8px;">
+    <h5>Grid Item 2</h5>
+    <p>Responsive Design</p>
+  </div>
+  <div style="background: #a29bfe; padding: 1rem; text-align: center; border-radius: 8px;">
+    <h5>Grid Item 3</h5>
+    <p>Modern CSS</p>
+  </div>
+</div>
+
+## 6. Custom Components
+
+<details style="background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0;">
+  <summary style="cursor: pointer; font-weight: bold;">Click to expand custom details component</summary>
+  <p style="margin-top: 1rem;">This is a native HTML <code>&lt;details&gt;</code> element styled with custom CSS. It provides an interactive expand/collapse functionality without JavaScript, and is fully accessible with keyboard navigation.</p>
+</details>
+
+## 7. Tables with Custom Styling
+
+<table class="custom-table" role="table" aria-label="Quarto HTML/CSS Features Support">
+  <thead>
+    <tr>
+      <th scope="col">Feature</th>
+      <th scope="col">Description</th>
+      <th scope="col">Status</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>External CSS</td>
+      <td>Link external stylesheets</td>
+      <td><span style="color: green;" aria-label="Supported">✓ Supported</span></td>
+    </tr>
+    <tr>
+      <td>Inline CSS</td>
+      <td>CSS code chunks</td>
+      <td><span style="color: green;" aria-label="Supported">✓ Supported</span></td>
+    </tr>
+    <tr>
+      <td>Direct HTML</td>
+      <td>Embed raw HTML</td>
+      <td><span style="color: green;" aria-label="Supported">✓ Supported</span></td>
+    </tr>
+  </tbody>
+</table>
+
+## 8. Media Queries and Responsive Design
+
+<p class="responsive-text">This text changes color and size based on screen width!</p>
+
+## 9. CSS Variables and Custom Properties
+
+<div class="css-variable-demo">
+  This component uses CSS custom properties (variables) for consistent styling.
+</div>
+
+## 10. Advanced Selectors and Pseudo-elements
+
+<ul class="fancy-list">
+  <li>First item with custom bullet</li>
+  <li>Second item with background</li>
+  <li>Third item with custom bullet</li>
+  <li>Fourth item with background</li>
+</ul>
+
+<blockquote class="fancy-blockquote">
+  This blockquote has a fancy quote mark using CSS pseudo-elements.
+</blockquote>
+
+## 11. Advanced CSS Features
+
+### CSS Grid Areas
+
+<div class="grid-areas-container" role="region" aria-label="CSS Grid Areas Demo">
+  <header class="grid-header">Header Area</header>
+  <nav class="grid-sidebar" role="navigation">Sidebar Navigation</nav>
+  <main class="grid-main">Main Content Area</main>
+  <aside class="grid-aside">Aside Content</aside>
+  <footer class="grid-footer">Footer Area</footer>
+</div>
+
+### Container Queries
+
+<div class="container-wrapper">
+  <div class="container-query-demo">
+    <p>This element changes style based on its container width, not the viewport! Resize your browser to see the effect.</p>
+  </div>
+</div>
+
+### CSS Cascade Layers
+
+<div class="layered-element">
+  <p>This uses CSS cascade layers. The theme layer wins over base layer.</p>
+</div>
+
+<div class="layered-element override">
+  <p>This has the utility layer override applied.</p>
+</div>
+
+### CSS Counters
+
+<ul class="counter-list">
+  <li>Introduction to CSS Counters</li>
+  <li>Using counter-reset and counter-increment</li>
+  <li>Styling with counters</li>
+  <li>Nested counter examples</li>
+</ul>
+
+<div class="nested-counters">
+  <h4>Getting Started</h4>
+  <h5>Installation</h5>
+  <h5>Configuration</h5>
+  <h4>Advanced Usage</h4>
+  <h5>Custom Themes</h5>
+  <h5>Plugins</h5>
+</div>
+
+## 12. Quarto-Specific Styling
+
+### Working with Quarto's Built-in Classes
+
+Quarto provides several built-in classes that you can use and extend:
+
+::: {.callout-note}
+## Note
+This is a Quarto callout with the built-in `.callout-note` class. You can customize these in your CSS.
+:::
+
+::: {.callout-tip}
+## Tip
+Use Quarto's built-in classes before creating custom ones. They're already responsive and accessible!
+:::
+
+::: {.callout-warning}
+## Warning
+Be careful when overriding Quarto's default styles - use specific selectors to avoid breaking functionality.
+:::
+
+::: {.callout-important}
+## Important
+Always test your custom styles with different Quarto themes to ensure compatibility.
+:::
+
+### Dark Mode Support
+
+<div class="theme-aware-component">
+  <h4>Theme-Aware Component</h4>
+  <p>This component adapts to Quarto's theme settings. Try switching between light and dark modes!</p>
+</div>
+
+<div class="auto-dark-mode">
+  <h4>Automatic Dark Mode</h4>
+  <p>This component automatically adjusts based on your system's color scheme preference.</p>
+</div>
+
+### Customizing Quarto Elements
+
+<figure class="quarto-figure" style="text-align: center;">
+  <svg width="400" height="300" style="border: 1px solid #ddd; background: #f8f9fa;">
+    <rect x="50" y="50" width="300" height="200" fill="#e9ecef" stroke="#667eea" stroke-width="2"/>
+    <circle cx="200" cy="150" r="40" fill="#667eea" opacity="0.7"/>
+    <text x="200" y="30" text-anchor="middle" font-size="16" font-weight="bold">Sample Figure</text>
+    <line x1="50" y1="150" x2="350" y2="150" stroke="#764ba2" stroke-width="2" stroke-dasharray="5,5"/>
+  </svg>
+  <figcaption>This figure caption is styled with custom CSS</figcaption>
+</figure>
+
+<div class="citation">
+"This is a custom-styled citation block that works well with Quarto's typography system." — Author Name
+</div>
+
+### Quarto Layout Integration
+
+::: {.column-screen}
+<div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 3rem; text-align: center;">
+  <h3>Full Screen Width Content</h3>
+  <p>This uses Quarto's `.column-screen` class for full-width layouts.</p>
+</div>
+:::
+
+::: {.column-margin}
+This is margin content using Quarto's `.column-margin` class. Great for annotations!
+:::
+
+## 13. Code Folding and Organization
+
+Quarto provides built-in code folding capabilities to keep your documents clean and readable. You can control code folding at both the document and chunk level.
+
+### Document-Level Code Folding
+
+The document header includes these options:
+- `code-fold: true` - Enable code folding globally
+- `code-summary: "Show code"` - Customize the text shown on fold buttons
+- `code-tools: true` - Add a code tools menu in the top right
+
+### Supported Languages
+
+Code folding works with **executable** code chunks:
+- ✅ R, Python, JavaScript
+- ✅ Bash, SQL
+- ✅ Julia, C++, Stan
+- ❌ CSS, HTML, YAML (non-executable)
+
+For non-executable languages like CSS, you can use HTML `<details>` elements as shown at the top of this document.
+
+### Chunk-Level Control
+
+You can override the global setting for individual code chunks:
+
+```{yaml}
+#| code-fold: false
+#| echo: false
+# This shows how to control folding per chunk
+# code-fold: true - Code is folded by default
+# code-fold: false - Code is shown by default
+# code-fold: show - Same as false
+# code-summary: "Custom text" - Override summary text
+```
+
+### Manual Folding for CSS
+
+Since CSS isn't executable, use this pattern:
+
+```html
+<details>
+  <summary>Show CSS styles</summary>
+
+  ```css
+  /* Your CSS code here */
+  ```
+</details>
+```
+
+## 14. Performance Tips and Best Practices
+
+### When to Use Each Method
+
+| Method | Use Case | Performance Impact |
+|--------|----------|-------------------|
+| External CSS Files | Large stylesheets, reusable styles | Best - cached by browser |
+| CSS Code Chunks | Document-specific styles | Good - single file |
+| Inline Styles | Quick one-off styling | Poor - avoid for repeated elements |
+| SCSS Theme | Global theme customization | Best - compiled once |
+
+### Performance Optimization
+
+1. **Minimize Reflows and Repaints**
+   - Batch DOM changes
+   - Use CSS transforms instead of position changes
+   - Avoid inline styles on frequently updated elements
+
+2. **Optimize Animations**
+   - Use `transform` and `opacity` for animations (GPU-accelerated)
+   - Always include `will-change` for complex animations
+   - Respect `prefers-reduced-motion`
+
+3. **CSS Loading Strategy**
+   - Critical CSS in header
+   - Non-critical CSS can be loaded asynchronously
+   - Use CSS containment for complex components
+
+### Troubleshooting Common Issues
+
+::: {.callout-tip}
+## CSS Specificity Conflicts
+If your styles aren't applying, check:
+1. Specificity - Quarto's default styles might be more specific
+2. Load order - ensure your CSS loads after Quarto's
+3. Use browser DevTools to inspect computed styles
+:::
+
+::: {.callout-warning}
+## Common Pitfalls
+- **Don't use `!important`** unless absolutely necessary
+- **Test across themes** - what works in one theme might break in another
+- **Check mobile responsiveness** - Quarto has its own breakpoints
+- **Validate accessibility** - custom styles can break screen readers
+:::
+
+### Debugging CSS in Quarto
+
+```css
+/* Debug helper - add to see element boundaries */
+.debug * {
+  outline: 1px solid red !important;
+}
+
+/* Check cascade order */
+.test-specificity {
+  background: yellow !important; /* temporary debug */
+}
+```
+
+### Code Folding Examples
+
+Here's a longer CSS example that demonstrates code folding:
+
+<details>
+<summary style="cursor: pointer; padding: 0.5rem; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; margin-bottom: 0.5rem; display: inline-block;">Show complete animation CSS</summary>
+
+```css
+/* Complex animation example */
+@keyframes rainbow {
+  0% { color: #ff0000; }
+  17% { color: #ff8800; }
+  33% { color: #ffff00; }
+  50% { color: #00ff00; }
+  67% { color: #0088ff; }
+  83% { color: #8800ff; }
+  100% { color: #ff0000; }
+}
+
+.rainbow-text {
+  animation: rainbow 5s linear infinite;
+  font-size: 2rem;
+  font-weight: bold;
+  text-align: center;
+  margin: 2rem 0;
+}
+
+/* 3D transform example */
+.card-3d {
+  perspective: 1000px;
+  margin: 2rem auto;
+  width: 300px;
+  height: 200px;
+}
+
+.card-3d-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  text-align: center;
+  transition: transform 0.6s;
+  transform-style: preserve-3d;
+}
+
+.card-3d:hover .card-3d-inner {
+  transform: rotateY(180deg);
+}
+
+.card-3d-front, .card-3d-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.card-3d-front {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.card-3d-back {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  transform: rotateY(180deg);
+}
+```
+
+</details>
+
+<div class="rainbow-text">Rainbow Animation Text</div>
+
+<div class="card-3d">
+  <div class="card-3d-inner">
+    <div class="card-3d-front">
+      Front Side
+    </div>
+    <div class="card-3d-back">
+      Back Side
+    </div>
+  </div>
+</div>
+
+You can also fold JavaScript code:
+
+```{javascript}
+#| code-fold: true
+#| code-summary: "Show JavaScript interaction code"
+// Advanced interaction example
+document.addEventListener('DOMContentLoaded', function() {
+    // Create interactive color picker
+    const colorPicker = document.createElement('div');
+    colorPicker.innerHTML = `
+        <div style="margin: 2rem 0; padding: 1rem; border: 2px solid #ddd; border-radius: 8px;">
+            <h4>Interactive Color Picker</h4>
+            <input type="color" id="colorInput" value="#667eea">
+            <button id="applyColor" style="margin-left: 1rem; padding: 0.5rem 1rem; border: none; background: #667eea; color: white; border-radius: 4px; cursor: pointer;">
+                Apply to Headers
+            </button>
+            <button id="resetColor" style="margin-left: 0.5rem; padding: 0.5rem 1rem; border: none; background: #6c757d; color: white; border-radius: 4px; cursor: pointer;">
+                Reset
+            </button>
+        </div>
+    `;
+    
+    // Insert after the code block
+    const codeBlock = document.currentScript.parentElement;
+    if (codeBlock) {
+        codeBlock.insertAdjacentElement('afterend', colorPicker);
+    }
+    
+    // Add functionality
+    const applyBtn = document.getElementById('applyColor');
+    const resetBtn = document.getElementById('resetColor');
+    const colorInput = document.getElementById('colorInput');
+    
+    if (applyBtn && colorInput) {
+        applyBtn.addEventListener('click', function() {
+            const color = colorInput.value;
+            document.querySelectorAll('h1, h2, h3, h4').forEach(heading => {
+                heading.style.color = color;
+            });
+        });
+    }
+    
+    if (resetBtn) {
+        resetBtn.addEventListener('click', function() {
+            document.querySelectorAll('h1, h2, h3, h4').forEach(heading => {
+                heading.style.color = '';
+            });
+            colorInput.value = '#667eea';
+        });
+    }
+});
+```
+
+### Browser Compatibility
+
+Always test your custom CSS in multiple browsers:
+- Chrome/Edge (Chromium)
+- Firefox
+- Safari (especially for `-webkit` prefixes)
+
+Use CSS feature queries for newer features:
+
+```css
+@supports (container-type: inline-size) {
+  /* Container query styles */
+}
+
+@supports not (container-type: inline-size) {
+  /* Fallback styles */
+}
+```
+
+## Summary
+
+This comprehensive guide demonstrated:
+
+1. **External CSS files** via YAML header
+2. **Inline CSS** with code chunks  
+3. **Direct HTML** embedding
+4. **Bootstrap integration** (included by default)
+5. **CSS animations** and transitions
+6. **Grid and flexbox** layouts
+7. **Custom components** and styling
+8. **Responsive design** with media queries
+9. **CSS variables** for consistent theming
+10. **Advanced selectors** and pseudo-elements
+11. **Advanced CSS features** (Grid areas, container queries, cascade layers)
+12. **Quarto-specific styling** and dark mode support
+13. **Code folding** for better document organization
+14. **Performance optimization** and troubleshooting
+
+Remember:
+- **Organize styles** logically and avoid duplication
+- **Prioritize accessibility** with ARIA labels and keyboard navigation
+- **Test across different themes** and screen sizes
+- **Use Quarto's built-in classes** before creating custom ones
+- **Document your custom styles** for future maintenance
+
+All these features make Quarto a powerful tool for creating richly styled documents while maintaining the simplicity of Markdown.
+
+</main>

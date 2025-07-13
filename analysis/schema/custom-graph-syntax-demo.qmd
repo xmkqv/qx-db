@@ -1,0 +1,508 @@
+---
+title: "Custom Graph Syntax Parser"
+subtitle: "A minimal notation for elegant graph visualizations"
+author: "QX Database Team"
+date: today
+format:
+  html:
+    code-fold: true
+    toc: true
+    toc-depth: 3
+    css: |
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        code { background: #f5f5f5; padding: 2px 4px; border-radius: 3px; }
+        pre code { background: none; padding: 0; }
+        .sourceCode { background: #fafafa; }
+      </style>
+---
+
+# Syntax Reference
+
+Our custom graph notation uses these elements:
+
+| Syntax | Purpose | Example |
+|--------|---------|---------|
+| `-- comment` | Comments (ignored) | `-- This is a comment` |
+| `{placeholder}` | Placeholder text | `{anything}` |
+| `{a\|\|\|b}` | Meta OR | `{node\|\|\|edge}` |
+| `@({match})` | Node reference | `@({user})` or `@({Da---})` |
+| Plain text | Node data | `User Profile` |
+| `@{prefix---}` | Prefix match | `@{Da---}` matches "Database", "Data", etc |
+| `# text` | Child of previous | `# Settings` |
+| `## text` | Child of parent's parent | `## Advanced` |
+| `-->` | Directed link | `@(A) --> @(B)` |
+
+# Introduction
+
+This document demonstrates a unique graph notation system that requires no external packages. Create nodes by writing text, build hierarchies with `#` markers, and connect anything with `@()` references.
+
+# Core Parser
+
+```{ojs}
+// Main parser for our custom syntax
+function parse(text) {
+  const nodes = new Map();
+  const edges = [];
+  let previousNode = null;
+  let parentStack = [];
+  
+  const lines = text.trim().split('\n');
+  
+  lines.forEach((line, index) => {
+    // Skip comments
+    if (line.trim().startsWith('--')) return;
+    
+    // Handle hierarchy markers
+    const hierarchyMatch = line.match(/^(#+)\s+(.+)$/);
+    if (hierarchyMatch) {
+      const [, hashes, content] = hierarchyMatch;
+      const level = hashes.length;
+      const nodeData = content.trim();
+      const nodeId = `node_${index}`;
+      
+      nodes.set(nodeId, { id: nodeId, data: nodeData });
+      
+      // Connect based on hierarchy level
+      if (level === 1 && previousNode) {
+        edges.push({ source: previousNode, target: nodeId });
+      } else if (level > 1 && parentStack[level - 2]) {
+        edges.push({ source: parentStack[level - 2], target: nodeId });
+      }
+      
+      parentStack[level - 1] = nodeId;
+      previousNode = nodeId;
+      return;
+    }
+    
+    // Handle explicit links: @(matcher1) --> @(matcher2)
+    const linkMatch = line.match(/@\(([^)]+)\)\s*-->\s*@\(([^)]+)\)/);
+    if (linkMatch) {
+      const [, source, target] = linkMatch;
+      edges.push({ 
+        source: findNode(nodes, source), 
+        target: findNode(nodes, target),
+        type: 'explicit'
+      });
+      return;
+    }
+    
+    // Handle plain text as node data
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.includes('@(') && !trimmed.includes('{')) {
+      const nodeId = `node_${index}`;
+      nodes.set(nodeId, { id: nodeId, data: trimmed });
+      previousNode = nodeId;
+    }
+  });
+  
+  return { 
+    nodes: Array.from(nodes.values()), 
+    edges 
+  };
+}
+
+// Helper to find nodes by matcher pattern
+function findNode(nodes, matcher) {
+  // Handle ellipsis matching
+  if (matcher.includes('---')) {
+    const prefix = matcher.replace('---', '');
+    for (const [id, node] of nodes) {
+      if (node.data && node.data.startsWith(prefix)) {
+        return id;
+      }
+    }
+  }
+  // Exact match
+  for (const [id, node] of nodes) {
+    if (node.data === matcher) return id;
+  }
+  return matcher; // fallback
+}
+```
+
+# Examples
+
+## Simple Hierarchy
+
+Using plain text and `#` markers:
+
+```
+User System
+# Profile
+# Settings
+## Preferences
+## Security
+```
+
+```{ojs}
+// Parse and visualize the hierarchy example
+example1 = parse(`User System
+# Profile  
+# Settings
+## Preferences
+## Security`);
+```
+
+```{ojs}
+// Minimal visualization settings
+style = {
+  nodeRadius: 6,
+  nodeColor: "#333",
+  edgeColor: "#ccc",
+  textColor: "#333",
+  fontSize: 11,
+  width: 600,
+  height: 300
+};
+
+// Layout algorithm for hierarchical graphs
+function layoutHierarchy(parsed) {
+  const { nodes, edges } = parsed;
+  const positions = {};
+  const levels = {};
+  
+  // Calculate levels
+  nodes.forEach(node => {
+    levels[node.id] = 0;
+  });
+  
+  // Update levels based on edges
+  let changed = true;
+  while (changed) {
+    changed = false;
+    edges.forEach(edge => {
+      if (levels[edge.target] <= levels[edge.source]) {
+        levels[edge.target] = levels[edge.source] + 1;
+        changed = true;
+      }
+    });
+  }
+  
+  // Group by level
+  const byLevel = {};
+  Object.entries(levels).forEach(([id, level]) => {
+    if (!byLevel[level]) byLevel[level] = [];
+    byLevel[level].push(id);
+  });
+  
+  // Position nodes
+  Object.entries(byLevel).forEach(([level, ids]) => {
+    const y = 50 + parseInt(level) * 80;
+    const spacing = style.width / (ids.length + 1);
+    ids.forEach((id, i) => {
+      positions[id] = { x: spacing * (i + 1), y };
+    });
+  });
+  
+  return positions;
+}
+```
+
+```{ojs}
+// Apply layout
+positions1 = layoutHierarchy(example1);
+
+// Transform for visualization  
+nodes1 = example1.nodes.map(n => ({
+  ...n,
+  ...positions1[n.id]
+}));
+
+edges1 = example1.edges.map(e => ({
+  x1: positions1[e.source].x,
+  y1: positions1[e.source].y,
+  x2: positions1[e.target].x,
+  y2: positions1[e.target].y
+}));
+```
+
+```{ojs}
+Plot.plot({
+  width: style.width,
+  height: style.height,
+  marks: [
+    // Edges
+    Plot.link(edges1, {
+      x1: "x1",
+      y1: "y1", 
+      x2: "x2",
+      y2: "y2",
+      stroke: style.edgeColor,
+      strokeWidth: 1,
+      markerEnd: "arrow"
+    }),
+    // Nodes
+    Plot.dot(nodes1, {
+      x: "x",
+      y: "y",
+      r: style.nodeRadius,
+      fill: style.nodeColor,
+      strokeWidth: 0
+    }),
+    // Labels
+    Plot.text(nodes1, {
+      x: "x",
+      y: "y",
+      text: "data",
+      dy: -15,
+      fontSize: style.fontSize,
+      fill: style.textColor
+    })
+  ]
+})
+```
+
+## Explicit Links
+
+Using `@()` references and `-->`:
+
+```
+Database System
+Storage Engine
+Query Processor
+
+-- Create explicit connections
+@(Database System) --> @(Storage Engine)
+@(Database System) --> @(Query Processor)
+```
+
+```{ojs}
+example2 = parse(`Database System
+Storage Engine
+Query Processor
+
+-- Create explicit connections
+@(Database System) --> @(Storage Engine)
+@(Database System) --> @(Query Processor)`);
+```
+
+```{ojs}
+// Apply layout
+positions2 = layoutHierarchy(example2);
+
+nodes2 = example2.nodes.map(n => ({
+  ...n,
+  ...positions2[n.id]
+}));
+
+edges2 = example2.edges.map(e => ({
+  x1: positions2[e.source].x,
+  y1: positions2[e.source].y,
+  x2: positions2[e.target].x,
+  y2: positions2[e.target].y,
+  ...e
+}));
+```
+
+```{ojs}
+Plot.plot({
+  width: style.width,
+  height: 250,
+  marks: [
+    // Edges
+    Plot.link(edges2, {
+      x1: "x1",
+      y1: "y1",
+      x2: "x2",
+      y2: "y2",
+      stroke: d => d.type === 'explicit' ? "#666" : style.edgeColor,
+      strokeWidth: d => d.type === 'explicit' ? 2 : 1,
+      markerEnd: "arrow"
+    }),
+    // Nodes
+    Plot.dot(nodes2, {
+      x: "x",
+      y: "y",
+      r: style.nodeRadius,
+      fill: style.nodeColor
+    }),
+    // Labels
+    Plot.text(nodes2, {
+      x: "x",
+      y: "y",
+      text: "data",
+      dy: -15,
+      fontSize: style.fontSize,
+      fill: style.textColor
+    })
+  ]
+})
+```
+
+## Pattern Matching
+
+Using ellipsis `---` to match prefixes:
+
+```
+Database
+Data Store  
+Data Lake
+Dashboard
+
+-- Connect all Data* nodes to Database
+@(Database) --> @(Data---)
+```
+
+```{ojs}
+// Enhanced parser with pattern matching
+example3 = parse(`Database
+Data Store  
+Data Lake
+Dashboard
+
+-- Connect all Data* nodes to Database
+@(Database) --> @(Data---)`);
+```
+
+```{ojs}  
+// Apply layout
+positions3 = layoutHierarchy(example3);
+
+nodes3 = example3.nodes.map(n => ({
+  ...n,
+  ...positions3[n.id]
+}));
+
+edges3 = example3.edges.map(e => ({
+  x1: positions3[e.source].x,
+  y1: positions3[e.source].y,
+  x2: positions3[e.target].x,
+  y2: positions3[e.target].y,
+  ...e
+}));
+```
+
+```{ojs}
+Plot.plot({
+  width: style.width,
+  height: 250,
+  marks: [
+    Plot.link(edges3, {
+      x1: "x1", y1: "y1", x2: "x2", y2: "y2",
+      stroke: d => d.type === 'explicit' ? "#666" : style.edgeColor,
+      strokeWidth: d => d.type === 'explicit' ? 2 : 1,
+      markerEnd: "arrow"
+    }),
+    Plot.dot(nodes3, {
+      x: "x", y: "y",
+      r: style.nodeRadius,
+      fill: style.nodeColor
+    }),
+    Plot.text(nodes3, {
+      x: "x", y: "y",
+      text: "data",
+      dy: -15,
+      fontSize: style.fontSize,
+      fill: style.textColor
+    })
+  ]
+})
+```
+
+## Complex Graphs
+
+Combining all features:
+
+```
+API Gateway
+# User Service
+# Order Service
+## Payment Service
+# Notification Service
+
+-- Notifications need data from both services
+@(Notification Service) --> @(User Service)
+@(Notification Service) --> @(Order Service)
+
+-- Database connections
+Database Cluster
+# Users DB
+# Orders DB
+
+@(User Service) --> @(Users DB)
+@(Order Service) --> @(Orders DB)
+```
+
+```{ojs}
+example4 = parse(`API Gateway
+# User Service
+# Order Service
+## Payment Service
+# Notification Service
+
+-- Notifications need data from both services
+@(Notification Service) --> @(User Service)
+@(Notification Service) --> @(Order Service)
+
+-- Database connections
+Database Cluster
+# Users DB
+# Orders DB
+
+@(User Service) --> @(Users DB)
+@(Order Service) --> @(Orders DB)`);
+```
+
+```{ojs}
+// Apply layout
+positions4 = layoutHierarchy(example4);
+
+nodes4 = example4.nodes.map(n => ({
+  ...n,
+  ...positions4[n.id]
+}));
+
+edges4 = example4.edges.map(e => ({
+  x1: positions4[e.source].x,
+  y1: positions4[e.source].y,
+  x2: positions4[e.target].x,
+  y2: positions4[e.target].y,
+  ...e
+}));
+```
+
+```{ojs}
+Plot.plot({
+  width: style.width,
+  height: 400,
+  marks: [
+    Plot.link(edges4, {
+      x1: "x1", y1: "y1", x2: "x2", y2: "y2",
+      stroke: d => d.type === 'explicit' ? "#666" : style.edgeColor,
+      strokeWidth: d => d.type === 'explicit' ? 2 : 1,
+      markerEnd: "arrow"
+    }),
+    Plot.dot(nodes4, {
+      x: "x", y: "y",
+      r: style.nodeRadius,
+      fill: style.nodeColor
+    }),
+    Plot.text(nodes4, {
+      x: "x", y: "y",
+      text: "data",
+      dy: -15,
+      fontSize: style.fontSize - 1,
+      fill: style.textColor
+    })
+  ]
+})
+```
+
+# Summary
+
+We've created a unique graph notation system that:
+
+- **Text as nodes**: Simply write text to create nodes
+- **Hierarchy with `#`**: Use hashtags for parent-child relationships  
+- **References with `@()`**: Connect any nodes with pattern matching
+- **Comments with `--`**: Add explanatory notes
+- **Pattern matching with `---`**: Match multiple nodes by prefix
+
+Key features:
+- No external dependencies
+- Minimal, readable syntax
+- Powerful pattern matching
+- Clean visualizations with Observable Plot
+
+This system makes graph creation as simple as writing a structured document.

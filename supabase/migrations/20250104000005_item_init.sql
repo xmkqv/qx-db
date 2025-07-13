@@ -348,37 +348,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Function to check item access
-CREATE OR REPLACE FUNCTION fn_item_check_access(
-  p_item_id INTEGER,
-  p_user_id UUID,
-  p_required_permission PermissionType DEFAULT 'view'
-) RETURNS BOOLEAN AS $$
-DECLARE
-  item_node_id INTEGER;
-BEGIN
-  -- Get the node_id for this item
-  SELECT node_id INTO item_node_id
-  FROM item
-  WHERE id = p_item_id;
-  
-  IF item_node_id IS NULL THEN
-    RETURN FALSE;
-  END IF;
-  
-  -- Check if user has required permission on the node
-  RETURN EXISTS(
-    SELECT 1 FROM node 
-    WHERE id = item_node_id 
-    AND creator_id = p_user_id
-  ) OR EXISTS(
-    SELECT 1 FROM node_access
-    WHERE node_id = item_node_id 
-    AND user_id = p_user_id 
-    AND permission >= p_required_permission
-  );
-END;
-$$ LANGUAGE plpgsql;
 
 -- =============================================================================
 -- Row level security
@@ -388,51 +357,22 @@ $$ LANGUAGE plpgsql;
 ALTER TABLE item ENABLE ROW LEVEL SECURITY;
 
 -- Item table policies
-CREATE POLICY "item_select_policy" ON item
+CREATE POLICY "Users can view items they have access to" ON item
   FOR SELECT
-  USING (
-    node_id IN (
-      SELECT id FROM node WHERE creator_id = auth.uid()
-      UNION
-      SELECT node_id FROM node_access WHERE user_id = auth.uid()
-    )
-  );
+  USING (user_has_node_access(node_id, 4));  -- VIEW permission
 
-CREATE POLICY "item_insert_policy" ON item
+CREATE POLICY "Users can insert items they can edit" ON item
   FOR INSERT
-  WITH CHECK (
-    node_id IN (
-      SELECT id FROM node WHERE creator_id = auth.uid()
-      UNION
-      SELECT node_id FROM node_access 
-      WHERE user_id = auth.uid() 
-      AND permission >= 'edit'::PermissionType
-    )
-  );
+  WITH CHECK (user_has_node_access(node_id, 2));  -- EDIT permission
 
-CREATE POLICY "item_update_policy" ON item
+CREATE POLICY "Users can update items they can edit" ON item
   FOR UPDATE
-  USING (
-    node_id IN (
-      SELECT id FROM node WHERE creator_id = auth.uid()
-      UNION
-      SELECT node_id FROM node_access 
-      WHERE user_id = auth.uid() 
-      AND permission >= 'edit'::PermissionType
-    )
-  );
+  USING (user_has_node_access(node_id, 2))  -- EDIT permission
+  WITH CHECK (user_has_node_access(node_id, 2));
 
-CREATE POLICY "item_delete_policy" ON item
+CREATE POLICY "Users can delete items they admin" ON item
   FOR DELETE
-  USING (
-    node_id IN (
-      SELECT id FROM node WHERE creator_id = auth.uid()
-      UNION
-      SELECT node_id FROM node_access 
-      WHERE user_id = auth.uid() 
-      AND permission = 'admin'::PermissionType
-    )
-  );
+  USING (user_has_node_access(node_id, 1));  -- ADMIN permission
 
 -- =============================================================================
 -- Enhanced tile policies now that item table exists
@@ -449,16 +389,8 @@ CREATE POLICY "tile_select_policy" ON tile
   USING (
     EXISTS (
       SELECT 1 FROM item i
-      JOIN node n ON n.id = i.node_id
       WHERE i.tile_id = tile.id
-      AND (
-        n.creator_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM node_access na
-          WHERE na.node_id = n.id
-          AND na.user_id = auth.uid()
-        )
-      )
+      AND user_has_node_access(i.node_id, 4)  -- VIEW permission
     )
   );
 
@@ -467,17 +399,15 @@ CREATE POLICY "tile_update_policy" ON tile
   USING (
     EXISTS (
       SELECT 1 FROM item i
-      JOIN node n ON n.id = i.node_id
       WHERE i.tile_id = tile.id
-      AND (
-        n.creator_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM node_access na
-          WHERE na.node_id = n.id
-          AND na.user_id = auth.uid()
-          AND na.permission >= 'edit'::PermissionType
-        )
-      )
+      AND user_has_node_access(i.node_id, 2)  -- EDIT permission
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM item i
+      WHERE i.tile_id = tile.id
+      AND user_has_node_access(i.node_id, 2)  -- EDIT permission
     )
   );
 
@@ -486,16 +416,7 @@ CREATE POLICY "tile_delete_policy" ON tile
   USING (
     EXISTS (
       SELECT 1 FROM item i
-      JOIN node n ON n.id = i.node_id
       WHERE i.tile_id = tile.id
-      AND (
-        n.creator_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM node_access na
-          WHERE na.node_id = n.id
-          AND na.user_id = auth.uid()
-          AND na.permission = 'admin'::PermissionType
-        )
-      )
+      AND user_has_node_access(i.node_id, 1)  -- ADMIN permission
     )
   );

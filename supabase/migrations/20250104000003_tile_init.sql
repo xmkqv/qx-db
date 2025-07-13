@@ -33,19 +33,48 @@ CREATE INDEX index_tile__bounds ON tile(x, y, x_max, y_max);
 -- Enable RLS on tile table
 ALTER TABLE tile ENABLE ROW LEVEL SECURITY;
 
--- Basic tile policies - will be enhanced after item table is created
-CREATE POLICY "tile_select_policy" ON tile
+-- Tile policies - tiles are managed through items that reference them
+-- Users can view tiles referenced by items they have access to
+CREATE POLICY "Users can view tiles used by accessible items" ON tile
   FOR SELECT
-  USING (TRUE);  -- Temporarily allow all selects, will be restricted via items
+  USING (
+    EXISTS (
+      SELECT 1 FROM item i
+      WHERE i.tile_id = tile.id
+      AND user_has_node_access(i.node_id, 4)  -- VIEW permission
+    )
+  );
 
-CREATE POLICY "tile_insert_policy" ON tile
+-- Users can create tiles when they have edit access to use them
+CREATE POLICY "Users can create tiles for their items" ON tile
   FOR INSERT
-  WITH CHECK (TRUE);  -- Tiles are validated when associated with items
+  WITH CHECK (TRUE);  -- Actual permission check happens when associating with item
 
-CREATE POLICY "tile_update_policy" ON tile
+-- Users can update tiles used by items they can edit
+CREATE POLICY "Users can update tiles they have edit access to" ON tile
   FOR UPDATE
-  USING (TRUE);  -- Temporarily allow all updates, will be restricted via items
+  USING (
+    EXISTS (
+      SELECT 1 FROM item i
+      WHERE i.tile_id = tile.id
+      AND user_has_node_access(i.node_id, 2)  -- EDIT permission
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM item i
+      WHERE i.tile_id = tile.id
+      AND user_has_node_access(i.node_id, 2)  -- EDIT permission
+    )
+  );
 
-CREATE POLICY "tile_delete_policy" ON tile
+-- Users can delete tiles used by items they can admin
+CREATE POLICY "Users can delete tiles they have admin access to" ON tile
   FOR DELETE
-  USING (TRUE);  -- Temporarily allow all deletes, will be restricted via items
+  USING (
+    EXISTS (
+      SELECT 1 FROM item i
+      WHERE i.tile_id = tile.id
+      AND user_has_node_access(i.node_id, 1)  -- ADMIN permission
+    )
+  );

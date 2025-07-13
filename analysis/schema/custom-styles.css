@@ -1,0 +1,126 @@
+/* custom-styles.css - Primary custom styles for Quarto demo */
+
+/* Global styles */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  line-height: 1.6;
+}
+
+/* Custom utility classes */
+.text-gradient {
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+.shadow-box {
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  padding: 1.5rem;
+  border-radius: 8px;
+  background: white;
+  margin: 1rem 0;
+}
+
+/* Custom button styles */
+.btn-custom {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  padding: 0.5rem 1.5rem;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.btn-custom:hover {
+  transform: translateY(-2px);
+}
+
+/* Code block styling */
+pre {
+  background: #f8f9fa;
+  border-left: 4px solid #007bff;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+/* Table enhancements */
+table {
+  width: 100%;
+  margin: 1rem 0;
+}
+
+th {
+  background: #f8f9fa;
+  font-weight: 600;
+  padding: 0.75rem;
+}
+
+/* Callout boxes */
+.callout-note {
+  background: #cfe2ff;
+  border-left: 4px solid #084298;
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.callout-warning {
+  background: #fff3cd;
+  border-left: 4px solid #997404;
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 0 4px 4px 0;
+}
+
+.callout-important {
+  background: #f8d7da;
+  border-left: 4px solid #842029;
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 0 4px 4px 0;
+}
+
+/* Responsive images */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin: 1rem auto;
+}
+
+/* Custom list styles */
+.icon-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+.icon-list li {
+  padding-left: 1.5rem;
+  position: relative;
+  margin-bottom: 0.5rem;
+}
+
+.icon-list li::before {
+  content: "→";
+  position: absolute;
+  left: 0;
+  color: #007bff;
+  font-weight: bold;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  body {
+    font-size: 12pt;
+  }
+  
+  h1, h2, h3 {
+    page-break-after: avoid;
+  }
+}

@@ -52,20 +52,20 @@ CREATE TRIGGER trigger_data_text_insert_update_update_node
 -- Enable RLS on data table
 ALTER TABLE data_text ENABLE ROW LEVEL SECURITY;
 
--- Standard policy: check permissions directly
-CREATE POLICY "Data follows node access" ON data_text
-  FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM node n
-      WHERE n.id = data_text.node_id 
-      AND (
-        n.creator_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM node_access na
-          WHERE na.node_id = n.id
-          AND na.user_id = auth.uid()
-        )
-      )
-    )
-  );
+-- Data policies: access follows node permissions
+CREATE POLICY "Users can view text data they have access to" ON data_text
+  FOR SELECT
+  USING (user_has_node_access(node_id, 4));  -- VIEW permission
+
+CREATE POLICY "Users can insert text data they can edit" ON data_text
+  FOR INSERT
+  WITH CHECK (user_has_node_access(node_id, 2));  -- EDIT permission
+
+CREATE POLICY "Users can update text data they can edit" ON data_text
+  FOR UPDATE
+  USING (user_has_node_access(node_id, 2))  -- EDIT permission
+  WITH CHECK (user_has_node_access(node_id, 2));
+
+CREATE POLICY "Users can delete text data they admin" ON data_text
+  FOR DELETE
+  USING (user_has_node_access(node_id, 1));  -- ADMIN permission

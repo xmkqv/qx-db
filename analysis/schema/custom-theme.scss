@@ -1,0 +1,246 @@
+/*-- scss:defaults --*/
+
+// Color system
+$primary: #667eea;
+$secondary: #764ba2;
+$success: #48bb78;
+$info: #4299e1;
+$warning: #ed8936;
+$danger: #f56565;
+
+// Typography
+$font-family-sans-serif: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+$font-family-monospace: 'Fira Code', 'Monaco', 'Courier New', monospace;
+
+$font-size-base: 1rem;
+$h1-font-size: 2.5rem;
+$h2-font-size: 2rem;
+$h3-font-size: 1.75rem;
+$h4-font-size: 1.5rem;
+$h5-font-size: 1.25rem;
+$h6-font-size: 1rem;
+
+// Spacing
+$spacer: 1rem;
+$paragraph-margin-bottom: 1.25rem;
+
+// Borders and radius
+$border-radius: 0.375rem;
+$border-radius-lg: 0.5rem;
+$border-radius-sm: 0.25rem;
+
+// Code blocks
+$code-bg: #f8f9fa;
+$code-color: #e83e8c;
+$pre-bg: #f8f9fa;
+
+// Links
+$link-color: $primary;
+$link-decoration: none;
+$link-hover-color: darken($primary, 15%);
+$link-hover-decoration: underline;
+
+// Tables
+$table-cell-padding-y: 0.75rem;
+$table-cell-padding-x: 0.75rem;
+$table-bg: transparent;
+$table-hover-bg: rgba($primary, 0.05);
+
+/*-- scss:rules --*/
+
+// Gradient text utility
+.text-gradient {
+  background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: inline-block;
+}
+
+// Custom headers
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 600;
+  margin-top: 2rem;
+  margin-bottom: 1rem;
+  
+  &:first-child {
+    margin-top: 0;
+  }
+}
+
+// Enhanced code blocks
+pre {
+  border-left: 4px solid $primary;
+  position: relative;
+  
+  &::before {
+    content: 'CODE';
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: $primary;
+    color: white;
+    padding: 0.2rem 0.5rem;
+    font-size: 0.75rem;
+    font-weight: bold;
+  }
+}
+
+// Inline code
+code {
+  background: rgba($primary, 0.1);
+  padding: 0.2rem 0.4rem;
+  border-radius: $border-radius-sm;
+  font-size: 0.875em;
+}
+
+// Links with animation
+a {
+  position: relative;
+  transition: color 0.3s ease;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 0;
+    height: 2px;
+    background: $primary;
+    transition: width 0.3s ease;
+  }
+  
+  &:hover::after {
+    width: 100%;
+  }
+}
+
+// Table styling
+table {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-radius: $border-radius;
+  overflow: hidden;
+  
+  thead {
+    background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+    color: white;
+    
+    th {
+      border: none;
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 0.875rem;
+      letter-spacing: 0.5px;
+    }
+  }
+  
+  tbody tr {
+    transition: background-color 0.2s ease;
+    
+    &:hover {
+      background-color: $table-hover-bg;
+    }
+  }
+}
+
+// Blockquotes
+blockquote {
+  border-left: 4px solid $primary;
+  padding-left: 1.5rem;
+  font-style: italic;
+  position: relative;
+  background: rgba($primary, 0.05);
+  padding: 1rem 1rem 1rem 1.5rem;
+  border-radius: 0 $border-radius $border-radius 0;
+  
+  &::before {
+    content: '"';
+    position: absolute;
+    left: 10px;
+    top: -10px;
+    font-size: 3rem;
+    color: $primary;
+    opacity: 0.3;
+  }
+}
+
+// Button styles
+.btn {
+  border-radius: $border-radius;
+  padding: 0.5rem 1.25rem;
+  font-weight: 500;
+  transition: all 0.3s ease;
+  
+  &-primary {
+    background: linear-gradient(135deg, $primary 0%, $secondary 100%);
+    border: none;
+    
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba($primary, 0.3);
+    }
+  }
+}
+
+// Lists with custom bullets
+ul:not(.nav):not(.navbar-nav) {
+  li::marker {
+    color: $primary;
+  }
+}
+
+// Callout boxes
+.callout {
+  border-radius: $border-radius;
+  padding: 1rem 1.25rem;
+  margin: 1.5rem 0;
+  border-left: 4px solid;
+  
+  &.callout-note {
+    background-color: rgba($info, 0.1);
+    border-left-color: $info;
+  }
+  
+  &.callout-warning {
+    background-color: rgba($warning, 0.1);
+    border-left-color: $warning;
+  }
+  
+  &.callout-important {
+    background-color: rgba($danger, 0.1);
+    border-left-color: $danger;
+  }
+  
+  &.callout-tip {
+    background-color: rgba($success, 0.1);
+    border-left-color: $success;
+  }
+}
+
+// Smooth scrolling
+html {
+  scroll-behavior: smooth;
+}
+
+// Selection color
+::selection {
+  background: rgba($primary, 0.2);
+  color: darken($primary, 20%);
+}
+
+// Focus styles
+:focus {
+  outline: 2px solid $primary;
+  outline-offset: 2px;
+}
+
+// Print styles
+@media print {
+  pre, blockquote {
+    border-left-color: #000;
+  }
+  
+  a {
+    color: #000;
+    text-decoration: underline;
+  }
+}

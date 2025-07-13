@@ -46,8 +46,8 @@ BEGIN
   -- Only create if head_item_id is NULL
   IF NEW.head_item_id IS NULL THEN
     -- Create a node for the root item
-    INSERT INTO node (type, creator_id) 
-    VALUES ('text'::NodeType, NEW.user_id)
+    INSERT INTO node (type) 
+    VALUES ('text'::NodeType)
     RETURNING id INTO new_node_id;
     
     -- Create text data for the node
@@ -99,50 +99,25 @@ CREATE TRIGGER trigger_data_user_insert_update_update_node
 ALTER TABLE data_user ENABLE ROW LEVEL SECURITY;
 
 -- Users see accessible user data OR their own data
-CREATE POLICY "Users see accessible user data" ON data_user
+CREATE POLICY "Users can view user data they have access to" ON data_user
   FOR SELECT
   USING (
     user_id = auth.uid() OR
-    EXISTS (
-      SELECT 1 FROM node n
-      WHERE n.id = data_user.node_id 
-      AND (
-        n.creator_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM node_access na
-          WHERE na.node_id = n.id
-          AND na.user_id = auth.uid()
-        )
-      )
-    )
+    user_has_node_access(node_id, 4)  -- VIEW permission
   );
 
 -- Users can only update their own user data
-CREATE POLICY "Users update own data" ON data_user
+CREATE POLICY "Users can update their own user data" ON data_user
   FOR UPDATE
   USING (user_id = auth.uid())
   WITH CHECK (user_id = auth.uid());
 
 -- Users can insert their own user data
-CREATE POLICY "Users insert own data" ON data_user
+CREATE POLICY "Users can create their own user data" ON data_user
   FOR INSERT
   WITH CHECK (user_id = auth.uid());
 
 -- Users can delete based on node permissions
-CREATE POLICY "Users delete user data" ON data_user
+CREATE POLICY "Users can delete user data they admin" ON data_user
   FOR DELETE
-  USING (
-    EXISTS (
-      SELECT 1 FROM node n
-      WHERE n.id = data_user.node_id 
-      AND (
-        n.creator_id = auth.uid() OR
-        EXISTS (
-          SELECT 1 FROM node_access na
-          WHERE na.node_id = n.id
-          AND na.user_id = auth.uid()
-          AND na.permission = 'admin'
-        )
-      )
-    )
-  );
+  USING (user_has_node_access(node_id, 1));  -- ADMIN permission

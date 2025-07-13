@@ -1,0 +1,505 @@
+---
+title: "Schema Tree Documentation"
+author: "QX Database Team"
+date: today
+format:
+  html:
+    code-fold: true
+    code-summary: "Show code"
+---
+
+# Glossary
+
+::: {.callout-note}
+## About this Document
+This document describes the dual lineage tree architecture for the QX database system.
+:::
+
+## Core Concepts
+
+- **Data**
+
+    A typed irreducible unit of data; that, given its type, cannot be broken down further, eg:
+    
+    - Text: A word, a sentence, a paragraph, etc.
+    - File: An image, a document, etc.  
+    - Number: An integer, a float, etc.
+
+```{ojs}
+// Data Type Hierarchy
+nodes = [
+  {id: "Text", x: 100, y: 50, type: "data_type"},
+  {id: "File", x: 200, y: 50, type: "data_type"},
+  {id: "Number", x: 300, y: 50, type: "data_type"},
+  {id: "Data", x: 200, y: 150, type: "base_type"}
+]
+
+edges = [
+  {source: "Text", target: "Data"},
+  {source: "File", target: "Data"},
+  {source: "Number", target: "Data"},
+  {source: "Data", target: "Data"} // Self-loop
+]
+
+// Transform edges to include coordinates
+links = edges.map(edge => {
+  const sourceNode = nodes.find(n => n.id === edge.source);
+  const targetNode = nodes.find(n => n.id === edge.target);
+  return {
+    x1: sourceNode.x,
+    y1: sourceNode.y,
+    x2: targetNode.x,
+    y2: targetNode.y,
+    ...edge
+  };
+})
+
+Plot.plot({
+  width: 400,
+  height: 200,
+  marginBottom: 40,
+  marks: [
+    // Draw edges
+    Plot.link(links, {
+      x1: "x1",
+      y1: "y1", 
+      x2: "x2",
+      y2: "y2",
+      stroke: "gray",
+      strokeWidth: 2,
+      curve: d => d.source === d.target ? "bump-x" : "linear",
+      markerEnd: "arrow"
+    }),
+    
+    // Draw nodes
+    Plot.dot(nodes, {
+      x: "x",
+      y: "y",
+      r: 20,
+      fill: d => d.type === "data_type" ? "lightblue" : "lightgray",
+      stroke: "white",
+      strokeWidth: 2
+    }),
+    
+    // Add labels
+    Plot.text(nodes, {
+      x: "x",
+      y: "y",
+      text: "id",
+      fontSize: 12,
+      fontWeight: "bold"
+    }),
+    
+    // Add edge labels
+    Plot.text(links.filter(d => d.source !== d.target), {
+      x: d => (d.x1 + d.x2) / 2,
+      y: d => (d.y1 + d.y2) / 2 - 10,
+      text: "is a",
+      fontSize: 10,
+      fill: "gray"
+    })
+  ]
+})
+```
+
+- **Node**: An untyped proxy for data
+
+```{ojs}
+// Simple node to data relationship
+Plot.plot({
+  width: 350,
+  height: 150,
+  marks: [
+    // Draw dashed edge
+    Plot.link([{x1: 100, y1: 75, x2: 250, y2: 75}], {
+      x1: "x1",
+      y1: "y1",
+      x2: "x2", 
+      y2: "y2",
+      stroke: "gray",
+      strokeWidth: 2,
+      strokeDasharray: "5,5",
+      markerEnd: "arrow"
+    }),
+    
+    // Draw triangle for Node
+    Plot.dot([{x: 100, y: 75, label: "Node", type: "proxy"}], {
+      x: "x",
+      y: "y",
+      r: 20,
+      fill: "lightcoral",
+      stroke: "white",
+      strokeWidth: 2,
+      symbol: "triangle"
+    }),
+    
+    // Draw rectangle for data
+    Plot.rect([{x: 250, y: 75, label: "Hello, World!", type: "data"}], {
+      x: "x",
+      y: "y",
+      fill: "lightgreen",
+      stroke: "white",
+      strokeWidth: 2,
+      width: 100,
+      height: 30
+    }),
+    
+    // Add labels
+    Plot.text([
+      {x: 100, y: 75, label: "Node"},
+      {x: 250, y: 75, label: "Hello, World!"}
+    ], {
+      x: "x",
+      y: "y",
+      text: "label",
+      fontSize: 11,
+      fontWeight: "bold"
+    })
+  ]
+})
+```
+
+::: {.callout-tip}
+The above diagram shows a node pointing to data content
+:::
+
+- **Tree**: A composable hierarchy of nodes, eg:
+
+::: {.panel-tabset}
+### Document Trees
+- Markdown documents
+- HTML pages  
+- XML structures
+
+### File System Trees
+- Directories
+- Files
+- Symbolic links
+:::
+
+- **Hierarchy**: The corroralic structure resulting from a set of rules defining how entities relate to one another
+
+::: {.callout-important}
+## Hierarchy Types
+
+- **Stem-Desc:** A parent-child relationship where a node can have multiple children but only one parent.
+- **Peer:** A sibling relationship where nodes are at the same level in the hierarchy.
+- **Level:** A specific depth in the hierarchy, where nodes at the same level share a common stem.
+- **Root:** The entrypoint of the hierarchy, from which the entire tree can be traversed.
+:::
+
+- **Composable**: The system allows a tree's root to be accessed from any location within another tree.
+
+```{ojs}
+// Composable tree example
+composableNodes = [
+  {id: "Root1", x: 50, y: 100, type: "root"},
+  {id: "Node1", x: 150, y: 100, type: "node"},
+  {id: "Node2", x: 250, y: 100, type: "node"},
+  {id: "Root2", x: 400, y: 100, type: "root"},
+  {id: "NodeA", x: 500, y: 100, type: "node"}
+]
+
+composableEdges = [
+  {source: "Root1", target: "Node1", type: "tree"},
+  {source: "Node1", target: "Node2", type: "tree"},
+  {source: "Root2", target: "NodeA", type: "tree"},
+  {source: "NodeA", target: "Root1", type: "reference"}
+]
+
+// Transform edges
+composableLinks = composableEdges.map(edge => {
+  const sourceNode = composableNodes.find(n => n.id === edge.source);
+  const targetNode = composableNodes.find(n => n.id === edge.target);
+  return {
+    x1: sourceNode.x,
+    y1: sourceNode.y,
+    x2: targetNode.x,
+    y2: targetNode.y,
+    ...edge
+  };
+})
+
+Plot.plot({
+  width: 600,
+  height: 200,
+  marks: [
+    // Tree containers
+    Plot.rect([
+      {x: 150, y: 100, w: 200, label: "Tree1"},
+      {x: 450, y: 100, w: 100, label: "Tree2"}
+    ], {
+      x: "x",
+      y: "y",
+      fill: "lightyellow",
+      fillOpacity: 0.3,
+      stroke: "orange",
+      strokeDasharray: "2,2",
+      width: "w",
+      height: 150
+    }),
+    
+    // Draw edges
+    Plot.link(composableLinks, {
+      x1: "x1",
+      y1: "y1",
+      x2: "x2", 
+      y2: "y2",
+      stroke: d => d.type === "reference" ? "red" : "black",
+      strokeWidth: 2,
+      strokeDasharray: d => d.type === "reference" ? "5,5" : null,
+      curve: d => d.type === "reference" ? "bump-y" : "linear",
+      markerEnd: "arrow"
+    }),
+    
+    // Draw nodes
+    Plot.dot(composableNodes, {
+      x: "x",
+      y: "y",
+      r: 15,
+      fill: d => d.type === "root" ? "lightcoral" : "lightblue",
+      stroke: "white",
+      strokeWidth: 2,
+      symbol: d => d.type === "root" ? "diamond" : "circle"
+    }),
+    
+    // Node labels
+    Plot.text(composableNodes, {
+      x: "x",
+      y: "y",
+      text: "id",
+      fontSize: 10,
+      fontWeight: "bold"
+    }),
+    
+    // Reference label
+    Plot.text([{x: 300, y: 50, label: "references"}], {
+      x: "x",
+      y: "y",
+      text: "label",
+      fontSize: 9,
+      fill: "red",
+      fontStyle: "italic"
+    })
+  ]
+})
+```
+
+# Exclusions
+
+::: {.callout-warning}
+## Out of Scope
+- **Performance:** Ignore for now. Referential integrity & MVP are more important.
+:::
+
+# Code Examples
+
+::: {.panel-tabset}
+## SQL Schema
+
+```sql
+-- Example node table structure
+CREATE TABLE node (
+    id UUID PRIMARY KEY,
+    type VARCHAR(50),
+    data JSONB
+);
+```
+
+## Python Model
+
+```python
+from pydantic import BaseModel
+from uuid import UUID
+
+class Node(BaseModel):
+    id: UUID
+    type: str  # <1>
+    data: dict  # <2>
+```
+
+1. Type identifier for the node
+2. Flexible JSON data storage
+
+## Interactive Schema
+
+```{ojs}
+// Database schema visualization
+schemaNodes = [
+  {id: "node", x: 200, y: 50, table: true},
+  {id: "tile", x: 100, y: 150, table: true},
+  {id: "link", x: 200, y: 250, table: true},
+  {id: "item", x: 300, y: 150, table: true}
+]
+
+schemaEdges = [
+  {source: "tile", target: "node", label: "FK"},
+  {source: "link", target: "tile", label: "FK"},
+  {source: "item", target: "node", label: "FK"}
+]
+
+// Transform edges
+schemaLinks = schemaEdges.map(edge => {
+  const sourceNode = schemaNodes.find(n => n.id === edge.source);
+  const targetNode = schemaNodes.find(n => n.id === edge.target);
+  return {
+    x1: sourceNode.x,
+    y1: sourceNode.y,
+    x2: targetNode.x,
+    y2: targetNode.y,
+    ...edge
+  };
+})
+
+Plot.plot({
+  width: 400,
+  height: 300,
+  marks: [
+    // Draw relationships
+    Plot.link(schemaLinks, {
+      x1: "x1",
+      y1: "y1",
+      x2: "x2",
+      y2: "y2",
+      stroke: "steelblue",
+      strokeWidth: 2,
+      markerEnd: "arrow"
+    }),
+    
+    // Draw tables as rectangles
+    Plot.rect(schemaNodes, {
+      x: "x",
+      y: "y",
+      fill: "lightsteelblue",
+      stroke: "steelblue",
+      strokeWidth: 2,
+      width: 80,
+      height: 40
+    }),
+    
+    // Table names
+    Plot.text(schemaNodes, {
+      x: "x",
+      y: "y",
+      text: "id",
+      fontSize: 14,
+      fontWeight: "bold"
+    }),
+    
+    // FK labels
+    Plot.text(schemaLinks, {
+      x: d => (d.x1 + d.x2) / 2 + 15,
+      y: d => (d.y1 + d.y2) / 2,
+      text: "label",
+      fontSize: 10,
+      fill: "steelblue"
+    })
+  ]
+})
+```
+
+:::
+
+# Interactive Features
+
+```{ojs}
+// Database schema hierarchy
+hierarchyNodes = [
+  {id: "Database Schema", x: 250, y: 50, type: "root"},
+  {id: "Tables", x: 150, y: 150, type: "category"},
+  {id: "Functions", x: 250, y: 150, type: "category"},
+  {id: "Views", x: 350, y: 150, type: "category"},
+  {id: "node", x: 100, y: 250, type: "table"},
+  {id: "tile", x: 150, y: 250, type: "table"},
+  {id: "link", x: 200, y: 250, type: "table"}
+]
+
+hierarchyEdges = [
+  {source: "Database Schema", target: "Tables", type: "hierarchy"},
+  {source: "Database Schema", target: "Functions", type: "hierarchy"},
+  {source: "Database Schema", target: "Views", type: "hierarchy"},
+  {source: "Tables", target: "node", type: "hierarchy"},
+  {source: "Tables", target: "tile", type: "hierarchy"},
+  {source: "Tables", target: "link", type: "hierarchy"},
+  {source: "node", target: "tile", type: "fk"},
+  {source: "tile", target: "link", type: "fk"}
+]
+
+// Transform edges
+hierarchyLinks = hierarchyEdges.map(edge => {
+  const sourceNode = hierarchyNodes.find(n => n.id === edge.source);
+  const targetNode = hierarchyNodes.find(n => n.id === edge.target);
+  return {
+    x1: sourceNode.x,
+    y1: sourceNode.y,
+    x2: targetNode.x,
+    y2: targetNode.y,
+    ...edge
+  };
+})
+
+Plot.plot({
+  width: 500,
+  height: 350,
+  marks: [
+    // Draw edges
+    Plot.link(hierarchyLinks, {
+      x1: "x1",
+      y1: "y1",
+      x2: "x2",
+      y2: "y2",
+      stroke: d => d.type === "fk" ? "blue" : "black",
+      strokeWidth: d => d.type === "fk" ? 2 : 1,
+      markerEnd: "arrow"
+    }),
+    
+    // Draw nodes
+    Plot.rect(hierarchyNodes.filter(d => d.type !== "table"), {
+      x: "x",
+      y: "y",
+      fill: d => d.type === "root" ? "yellow" : "lightgray",
+      stroke: "black",
+      strokeWidth: 1,
+      width: 100,
+      height: 30
+    }),
+    
+    Plot.dot(hierarchyNodes.filter(d => d.type === "table"), {
+      x: "x",
+      y: "y",
+      r: 20,
+      fill: "lightblue",
+      stroke: "black",
+      strokeWidth: 1
+    }),
+    
+    // Labels
+    Plot.text(hierarchyNodes, {
+      x: "x",
+      y: "y",
+      text: "id",
+      fontSize: d => d.type === "root" ? 12 : 10,
+      fontWeight: d => d.type === "root" ? "bold" : "normal"
+    }),
+    
+    // FK labels
+    Plot.text(hierarchyLinks.filter(d => d.type === "fk"), {
+      x: d => (d.x1 + d.x2) / 2 - 10,
+      y: d => (d.y1 + d.y2) / 2,
+      text: "FK",
+      fontSize: 9,
+      fill: "blue"
+    })
+  ]
+})
+```
+
+::: {.callout-note}
+## Interactive Controls
+- **Click** nodes to expand/collapse children
+- **Hover** for detailed information
+- **Scroll** to zoom in/out
+- **Drag** to pan around the diagram
+:::
+
+This demonstrates the power of Observable JS network visualizations integrated with Quarto!
